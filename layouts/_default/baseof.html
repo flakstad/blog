@@ -11,8 +11,9 @@
 
 <body id="top" class="{{ if eq site.Params.defaultTheme `dark` }}dark{{ end }}">
 
-    {{/* Custom header: show on all pages */}}
-    {{ partialCached "custom-header.html" . -}}
+    {{ if .IsHome }}
+      {{ partialCached "custom-header.html" . }}
+    {{ end }}
 
     <main class="main">
         {{- block "main" . }}{{ end }}
