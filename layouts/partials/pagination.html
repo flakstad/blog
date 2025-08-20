@@ -1,0 +1,8 @@
+<nav style="text-align: center; margin: 2rem 0;">
+  {{ with .Paginator.Prev }}
+    <a href="{{ .URL }}">« Newer posts</a>
+  {{ end }}
+  {{ with .Paginator.Next }}
+    <a href="{{ .URL }}" style="margin-left:1rem;">Older posts »</a>
+  {{ end }}
+</nav>

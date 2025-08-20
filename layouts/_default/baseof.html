@@ -1,0 +1,22 @@
+{{- if lt hugo.Version "0.146.0" }}
+{{- errorf "=> hugo v0.146.0 or greater is required for hugo-PaperMod to build " }}
+{{- end -}}
+
+<!DOCTYPE html>
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}">
+
+<head>
+    {{- partial "head.html" . }}
+</head>
+
+<body id="top" class="{{ if eq site.Params.defaultTheme `dark` }}dark{{ end }}">
+
+    {{/* Custom header: show on all pages */}}
+    {{ partialCached "custom-header.html" . -}}
+
+    <main class="main">
+        {{- block "main" . }}{{ end }}
+    </main>
+
+</body>
+</html>

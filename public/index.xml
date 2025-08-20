@@ -1,19 +1,37 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>Andreas A. Flakstad</title>
+    <title>test</title>
     <link>http://localhost:1313/</link>
-    <description>Recent content on Andreas A. Flakstad</description>
-    <generator>Hugo</generator>
+    <description>Recent content on test</description>
+    <generator>Hugo -- 0.148.2</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 20 Aug 2025 14:18:57 +0200</lastBuildDate>
     <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Hello World</title>
-      <link>http://localhost:1313/posts/hello-world/</link>
+      <title>Example1</title>
+      <link>http://localhost:1313/posts/post1/</link>
       <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
-      <guid>http://localhost:1313/posts/hello-world/</guid>
-      <description>&lt;p&gt;This is my first post written in markdown. Hello there 👋.&lt;/p&gt;</description>
+      <guid>http://localhost:1313/posts/post1/</guid>
+      <description>&lt;p&gt;You can just change things! That&amp;rsquo;s the power of open source. But for a lot of people, it might seem like a theoretical power. Can you really change, say, Chrome? Well, yes!&lt;/p&gt;
+&lt;p&gt;We&amp;rsquo;ve made a micro fork of Chromium for Omarchy (our new 37signals Linux distribution). Just to add one feature needed for live theming. And now it&amp;rsquo;s released as a package anyone can install on any flavor of Arch using the AUR (Arch User Repository).&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Example2</title>
+      <link>http://localhost:1313/posts/post2/</link>
+      <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
+      <guid>http://localhost:1313/posts/post2/</guid>
+      <description>&lt;p&gt;One day, I got a chance. It just seemed to show up. It acted like it knew me, as if it wanted something.&lt;/p&gt;
+&lt;p&gt;This is how Kobi Yamada&amp;rsquo;s book What do you do with a chance? starts. I&amp;rsquo;ve been reading that beautiful book to the boys at bedtime since it came out in 2018. It continues:&lt;/p&gt;
+&lt;p&gt;It fluttered around me. It brushed up against me. It circled me as if it wanted me to grab it.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Example3</title>
+      <link>http://localhost:1313/posts/post3/</link>
+      <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
+      <guid>http://localhost:1313/posts/post3/</guid>
+      <description>&lt;p&gt;We&amp;rsquo;re going all-in on Omarchy at 37signals. Over the next three years, as the regular churn of hardware invites it, we&amp;rsquo;re switching everyone on our Ops and Ruby programming teams to our own Arch-derived Linux distribution (and of course sharing all the improvements we make along the way with everyone else on Omarchy!).&lt;/p&gt;
+&lt;p&gt;It&amp;rsquo;s funny how nobody bats an eye when the company mandate is to use Macs or Windows, but when the prescription is Linux, it&amp;rsquo;s suddenly surprising. It really shouldn&amp;rsquo;t be. Your ability to control your own destiny with Linux is far superior to what you&amp;rsquo;ll get from a closed-source, commercial operating system. Of course it is! The code is literally all there!&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

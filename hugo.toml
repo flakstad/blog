@@ -1,7 +1,25 @@
-baseURL = 'https://andreasflakstad.no/'
-languageCode = 'en-us'
-title = 'Andreas A. Flakstad'
-theme = 'bearblog'
+baseURL = "https://andreasflakstad.no/"
+languageCode = "en-us"
+title = "test"
+theme = "PaperMod"
+
+# Pagination (new syntax in Hugo v0.128+)
+[pagination]
+  pagerSize = 10
 
 [params]
-  footer = "© 2025 Andreas A. Flakstad"
+  # General
+  author = "Andreas A. Flakstad"
+  defaultTheme = "auto"      # or "dark", or "auto"
+  disableThemeToggle = true   # hide the dark/light switch
+
+  # Blog behavior
+  showReadingTime = false
+  showPostNavLinks = true
+  showBreadCrumbs = false
+  showShareButtons = false
+  showCodeCopyButtons = false
+
+  # Footer
+  hideFooter = true
+  hideCredits = true

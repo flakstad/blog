@@ -1,0 +1,23 @@
+{{ define "main" }}
+<article class="post" style="margin: 4rem 0;">
+
+  <!-- Date, centered -->
+  <p style="text-align: center; color: #555; font-size: 0.9em; margin-bottom: 0.3rem;">
+    {{ .Date.Format "Jan 2, 2006" }}
+  </p>
+
+  <!-- Title, centered -->
+  <h1 style="text-align: center; margin-bottom: 1rem;">
+    {{ .Title }}
+  </h1>
+
+  <!-- Post content -->
+  <div class="post-content">
+    {{ .Content }}
+  </div>
+
+  <!-- Footer (inline after content) -->
+  {{ partialCached "custom-footer.html" . -}}
+
+</article>
+{{ end }}

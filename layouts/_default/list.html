@@ -1,0 +1,37 @@
+{{ define "main" }}
+
+{{ range .Paginator.Pages }}
+<a href="{{ .RelPermalink }}" style="text-decoration: none; color: inherit;">
+  <article class="post"
+           style="cursor: pointer; transition: background 0.2s; padding: 1.5rem; margin-bottom: 2rem; border-radius: 6px;">
+
+    <!-- Date, centered -->
+    <p style="text-align: center; color: #888; font-size: 0.9em; margin-bottom: 0.3rem;">
+      {{ .Date.Format "Jan 2, 2006" }}
+    </p>
+
+    <!-- Title, centered -->
+    <h2 style="text-align: center; margin-bottom: 0.8rem;">
+      {{ .Title }}
+    </h2>
+
+    <!-- Summary / excerpt, left-aligned -->
+    <div class="post-summary" style="text-align: left;">
+      {{ .Summary }}
+    </div>
+
+  </article>
+</a>
+{{ end }}
+
+<!-- Pagination -->
+{{ partial "pagination.html" . }}
+
+<!-- Inline hover effect -->
+<style>
+a:hover .post {
+  background-color: #f9f9f9;
+}
+</style>
+
+{{ end }}
