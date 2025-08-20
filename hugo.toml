@@ -1,0 +1,7 @@
+baseURL = 'https://andreasflakstad.no/'
+languageCode = 'en-us'
+title = 'Andreas A. Flakstad'
+theme = 'bearblog'
+
+[params]
+  footer = "© 2025 Andreas A. Flakstad"
