@@ -1,0 +1,208 @@
+/* Base body */
+body {
+  font-family: "Georgia", serif;
+  font-size: 18px;
+  line-height: 1.8;
+  max-width: 800px;
+  margin: 5rem auto;
+  padding: 0 1.5rem;
+  color: #222;
+  background: #fdfcf8;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, serif;
+  color: inherit;
+  line-height: 1.2;
+}
+
+h1, h2 {
+  margin-top: 1.4em;
+}
+
+/* Main title for single posts */
+.post-single .post-title,
+#content h1.title {
+  font-size: 2.8rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1em;
+}
+
+/* Subtitle styling */
+span.subtitle {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 400;
+  text-align: center;
+  margin: 0 auto 2.5em auto;
+  line-height: 1.6;
+  max-width: 600px;
+  color: #555;
+}
+
+/* List of posts */
+.posts-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.post-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+
+.post {
+  padding: 1.5rem;
+  transition: background 0.2s;
+}
+
+
+/* Subtle hover effect */
+.post:hover {
+  background: rgba(0,0,0,0.03);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .post:hover {
+    background: rgba(255,255,255,0.05);
+  }
+}
+
+
+/* Post metadata */
+.post-date {
+  text-align: center;
+  color: #888;
+  font-size: 0.9em;
+  margin-bottom: 0.3rem;
+}
+
+.post-title {
+  text-align: center;
+  margin: 0.3rem 0 2rem 0;
+  font-size: 1.8rem;
+}
+
+.post-summary {
+  text-align: left;
+  color: #333;
+  margin-top: 0.5rem;
+}
+
+
+/* Single post content */
+.post-single {
+  margin: 4rem 0;
+  max-width: 800px;
+  line-height: 1.8;
+}
+
+.post-content {
+  text-align: left;
+  margin-top: 1.5rem;
+}
+
+/* Footer styling */
+.post-footer {
+  margin-top: 3rem;
+  font-size: 0.9em;
+  color: #888;
+  border-top: 1px solid #ddd;
+  padding-top: 1rem;
+}
+
+/* Header / footer links */
+.custom-header,
+.custom-footer {
+  text-align: center;
+  margin: 4rem 0;
+  font-size: 0.9em;
+  color: #555;
+}
+
+.custom-header h1 {
+  font-size: 1.4em;
+}
+
+.custom-header a,
+.custom-footer a {
+  color: #0077cc;
+  text-decoration: none;
+  margin: 0 0.3rem;
+  transition: color 0.2s;
+}
+
+.custom-header a:hover,
+.custom-footer a:hover {
+  color: #005499;
+}
+
+/* Nav / paginator */
+nav {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+nav a {
+  text-decoration: none;
+  color: #0077cc;
+  margin: 0 0.5rem;
+  transition: color 0.2s;
+}
+
+nav a:hover {
+  color: #005499;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+    color: #e0e0e0;
+  }
+
+  .post:hover {
+    background: #181818;
+  }
+
+  .post-date,
+  .post-summary,
+  .post-title,
+  .post-footer {
+    color: #eee;
+  }
+
+  .custom-header,
+  .custom-footer {
+    color: #eee;
+  }
+
+  .custom-header a,
+  .custom-footer a,
+  nav a {
+    color: #9cf;
+  }
+
+  .custom-header a:hover,
+  .custom-footer a:hover,
+  nav a:hover {
+    color: #6ae;
+  }
+
+  span.subtitle {
+    color: #aaa;
+  }
+
+  #outline-container-epilogue {
+    border-top: 1px solid #555;
+  }
+}
+
+
+hr {
+    margin: 3rem 0; /* space above and below all horizontal lines */
+}

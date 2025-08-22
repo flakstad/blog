@@ -1,37 +1,19 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Andreas Flakstad</title>
     <link>http://localhost:1313/</link>
     <description>Recent content on Andreas Flakstad</description>
-    <generator>Hugo -- 0.148.2</generator>
+    <generator>Hugo</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 20 Aug 2025 14:18:57 +0200</lastBuildDate>
+    <lastBuildDate>Wed, 20 Aug 2025 20:00:00 +0200</lastBuildDate>
     <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Example1</title>
-      <link>http://localhost:1313/posts/post1/</link>
-      <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
-      <guid>http://localhost:1313/posts/post1/</guid>
-      <description>&lt;p&gt;You can just change things! That&amp;rsquo;s the power of open source. But for a lot of people, it might seem like a theoretical power. Can you really change, say, Chrome? Well, yes!&lt;/p&gt;
-&lt;p&gt;We&amp;rsquo;ve made a micro fork of Chromium for Omarchy (our new 37signals Linux distribution). Just to add one feature needed for live theming. And now it&amp;rsquo;s released as a package anyone can install on any flavor of Arch using the AUR (Arch User Repository).&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>Example2</title>
-      <link>http://localhost:1313/posts/post2/</link>
-      <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
-      <guid>http://localhost:1313/posts/post2/</guid>
-      <description>&lt;p&gt;One day, I got a chance. It just seemed to show up. It acted like it knew me, as if it wanted something.&lt;/p&gt;
-&lt;p&gt;This is how Kobi Yamada&amp;rsquo;s book What do you do with a chance? starts. I&amp;rsquo;ve been reading that beautiful book to the boys at bedtime since it came out in 2018. It continues:&lt;/p&gt;
-&lt;p&gt;It fluttered around me. It brushed up against me. It circled me as if it wanted me to grab it.&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>Example3</title>
-      <link>http://localhost:1313/posts/post3/</link>
-      <pubDate>Wed, 20 Aug 2025 14:18:57 +0200</pubDate>
-      <guid>http://localhost:1313/posts/post3/</guid>
-      <description>&lt;p&gt;We&amp;rsquo;re going all-in on Omarchy at 37signals. Over the next three years, as the regular churn of hardware invites it, we&amp;rsquo;re switching everyone on our Ops and Ruby programming teams to our own Arch-derived Linux distribution (and of course sharing all the improvements we make along the way with everyone else on Omarchy!).&lt;/p&gt;
-&lt;p&gt;It&amp;rsquo;s funny how nobody bats an eye when the company mandate is to use Macs or Windows, but when the prescription is Linux, it&amp;rsquo;s suddenly surprising. It really shouldn&amp;rsquo;t be. Your ability to control your own destiny with Linux is far superior to what you&amp;rsquo;ll get from a closed-source, commercial operating system. Of course it is! The code is literally all there!&lt;/p&gt;</description>
+      <title>The Creator’s Oath: My Guiding Principles</title>
+      <link>http://localhost:1313/posts/creatorsoath/</link>
+      <pubDate>Wed, 20 Aug 2025 20:00:00 +0200</pubDate>
+      <guid>http://localhost:1313/posts/creatorsoath/</guid>
+      <description>&lt;p&gt;After reading the books and listening to the podcasts from the guys at&#xA;37signals, I’ve been reflecting on what it means to create software the way I&#xA;want to — with integrity, clarity, and discipline.&lt;/p&gt;&#xA;&lt;p&gt;I asked myself: How would Howard Roark run a SaaS?&lt;/p&gt;&#xA;&lt;p&gt;What came out of that reflection is The Creator’s Oath: a set of principles I&#xA;commit to for the rest of my career. These are not rules for others, and they&#xA;are not compromises for trends, praise, or pressure. They are the standards I&#xA;hold myself to: the way I want to work, think, and build.&lt;/p&gt;&#xA;&lt;p&gt;Below is the full text. For the complete manifesto online, see&#xA;&lt;a href=&#34;https://creatorsoath.org/&#34;&gt;https://creatorsoath.org/&lt;/a&gt;.&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

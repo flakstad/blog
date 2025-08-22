@@ -1,7 +1,6 @@
 baseURL = "https://andreasflakstad.no/"
 languageCode = "en-us"
 title = "Andreas Flakstad"
-theme = "PaperMod"
 
 # Pagination (new syntax in Hugo v0.128+)
 [pagination]
@@ -10,16 +9,8 @@ theme = "PaperMod"
 [params]
   # General
   author = "Andreas Flakstad"
-  defaultTheme = "auto"      # or "dark", or "auto"
-  disableThemeToggle = true   # hide the dark/light switch
-  #customCSS = ["css/custom.css"]
-
-  # Blog behavior
-  showReadingTime = false
-  showPostNavLinks = true
-  showBreadCrumbs = false
-  showShareButtons = false
-  showCodeCopyButtons = false
+  defaultTheme = "auto"
+  customCSS = ["css/custom.css"]
 
   # Footer
   hideFooter = true

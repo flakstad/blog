@@ -3,19 +3,16 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>http://localhost:1313/</loc>
-    <lastmod>2025-08-20T14:18:57+02:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/posts/post1/</loc>
-    <lastmod>2025-08-20T14:18:57+02:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/posts/post2/</loc>
-    <lastmod>2025-08-20T14:18:57+02:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/posts/post3/</loc>
-    <lastmod>2025-08-20T14:18:57+02:00</lastmod>
+    <lastmod>2025-08-20T20:00:00+02:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/posts/</loc>
-    <lastmod>2025-08-20T14:18:57+02:00</lastmod>
+    <lastmod>2025-08-20T20:00:00+02:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/posts/creatorsoath/</loc>
+    <lastmod>2025-08-20T20:00:00+02:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/posts/post2/</loc>
+    <lastmod>2025-08-20T20:00:00+02:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/categories/</loc>
   </url><url>
