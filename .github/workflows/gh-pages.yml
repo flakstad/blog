@@ -3,17 +3,17 @@ name: Deploy Hugo site to Pages
 on:
   push:
     branches:
-      - main  # or your default branch
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: true  # Pull the theme
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2

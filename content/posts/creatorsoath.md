@@ -3,30 +3,10 @@ date: 2025-08-20T20:00:00+02:00
 draft: false
 params:
     author: Andreas Flakstad
-title: "The Creator’s Oath: My Guiding Principles"
+title: "The Creator’s Oath"
 ---
 
-After reading the books and listening to the podcasts from the guys at
-37signals, I’ve been reflecting on what it means to create software the way I
-want to — with integrity, clarity, and discipline.
-
-I asked myself: How would Howard Roark run a SaaS?
-
-What came out of that reflection is The Creator’s Oath: a set of principles I
-commit to for the rest of my career. These are not rules for others, and they
-are not compromises for trends, praise, or pressure. They are the standards I
-hold myself to: the way I want to work, think, and build.
-
-Below is the full text. For the complete manifesto online, see
-https://creatorsoath.org/.
-
-<!--more-->
-
----
-
-# The Creator's Oath
-
-A manifesto for principled software builders who honor craft, integrity, and the user’s freedom.
+_A manifesto for principled software builders who honor craft, integrity, and the user’s freedom._
 
 This is a manifesto for creators who refuse to build noise. It is an
 oath to create only what is worthy. For ourselves. For those who value
@@ -43,6 +23,7 @@ problems, enhances human potential and respects autonomy without
 compromise. My work bears my name, undiluted. I serve users by serving
 the work. The world's recognition is secondary; I ship now.
 
+<!--more-->
 
 ## 2. Empower the individual
 
@@ -142,18 +123,12 @@ others.
 
 ---
 
-## 12 Epilogue
-
-These principles stand on three foundations.
-
-From Howard Roark, the courage to build only what aligns with my vision.
-
-From Stoicism, the discipline to act on what I control and release the rest.
-
-From Voluntaryism, the commitment to consent and choice, empowering users without ensnaring them.
+## Epilogue
 
 I call on creators to join me in this pledge: to build with purpose,
 honor the user and let the work stand as our truth. Adopt these
 principles in your craft, share them with others and build software
 that reflects this vision. Together, we can create a world of tools
 that empower, not enslave.
+
+https://creatorsoath.org/
