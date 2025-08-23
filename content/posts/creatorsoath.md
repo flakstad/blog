@@ -14,6 +14,8 @@ their time. For a world that deserves better tools. To build software
 that empower users, respect their freedom, and endures beyond fleeting
 trends.
 
+<!--more-->
+
 ## 1. Build with integrity
 
 I reject the siren call of market trends, praise, or pressure. I will
@@ -22,8 +24,6 @@ the user’s time, focus and sovereignty. Worthy software solves real
 problems, enhances human potential and respects autonomy without
 compromise. My work bears my name, undiluted. I serve users by serving
 the work. The world's recognition is secondary; I ship now.
-
-<!--more-->
 
 ## 2. Empower the individual
 
