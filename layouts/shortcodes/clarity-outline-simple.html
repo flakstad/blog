@@ -1,0 +1,16 @@
+<script src="/js/clarity-outline.js"></script>
+<link rel="stylesheet" href="/css/clarity-outline.css">
+
+<div class="clarity-outline-demo">
+  <clarity-outline 
+    data-items='[
+      {"id":"1","text":"Buy milk","status":"TODO"},
+      {"id":"2","text":"Take out the trash","status":"IN PROGRESS"},
+      {"id":"3","text":"Call mom","status":"DONE"},
+      {"id":"4","text":"Read email","status":"TODO"},
+      {"id":"5","text":"Fix the broken lamp","status":"CANCELLED"},
+      {"id":"6","text":"Write blog post","status":"IN PROGRESS"}
+    ]'
+    options='{"statusLabels": [{"label": "TODO", "isEndState": false}, {"label": "IN PROGRESS", "isEndState": false}, {"label": "DONE", "isEndState": true}, {"label": "CANCELLED", "isEndState": true}]}'>
+  </clarity-outline>
+</div>

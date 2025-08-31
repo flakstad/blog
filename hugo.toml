@@ -6,6 +6,12 @@ title = "Andreas Flakstad"
 [pagination]
   pagerSize = 10
 
+# Markdown configuration
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
 [params]
   # General
   author = "Andreas Flakstad"

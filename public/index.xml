@@ -15,5 +15,12 @@
       <guid>http://localhost:1313/posts/creatorsoath/</guid>
       <description>&lt;p&gt;&lt;em&gt;A manifesto for principled software builders who honor craft, integrity, and the user’s freedom.&lt;/em&gt;&lt;/p&gt;&#xA;&lt;p&gt;This is a manifesto for creators who refuse to build noise. It is an&#xA;oath to create only what is worthy. For ourselves. For those who value&#xA;their time. For a world that deserves better tools. To build software&#xA;that empower users, respect their freedom, and endures beyond fleeting&#xA;trends.&lt;/p&gt;</description>
     </item>
+    <item>
+      <title>Org-mode Style Outlines for the Web</title>
+      <link>http://localhost:1313/posts/org-outline-for-the-web/</link>
+      <pubDate>Mon, 27 Jan 2025 10:00:00 +0200</pubDate>
+      <guid>http://localhost:1313/posts/org-outline-for-the-web/</guid>
+      <description>&lt;p&gt;I&amp;rsquo;ve always been a fan of Emacs org-mode&amp;rsquo;s powerful outline functionality. My favorite features - hierarchical todos, metadata like due dates and priorities, and keyboard-driven navigation - have made it my go-to tool for task management. But what if you could have that same power in your web applications?&lt;/p&gt;</description>
+    </item>
   </channel>
 </rss>

@@ -2,20 +2,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>http://localhost:1313/</loc>
+    <loc>https://andreasflakstad.no/</loc>
     <lastmod>2025-08-20T20:00:00+02:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/posts/</loc>
+    <loc>https://andreasflakstad.no/posts/</loc>
     <lastmod>2025-08-20T20:00:00+02:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/posts/creatorsoath/</loc>
+    <loc>https://andreasflakstad.no/posts/creatorsoath/</loc>
     <lastmod>2025-08-20T20:00:00+02:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/posts/post2/</loc>
-    <lastmod>2025-08-20T20:00:00+02:00</lastmod>
+    <loc>https://andreasflakstad.no/posts/org-outline-for-the-web/</loc>
+    <lastmod>2025-01-27T10:00:00+02:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/categories/</loc>
+    <loc>https://andreasflakstad.no/categories/</loc>
   </url><url>
-    <loc>http://localhost:1313/tags/</loc>
+    <loc>https://andreasflakstad.no/tags/</loc>
   </url>
 </urlset>

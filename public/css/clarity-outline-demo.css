@@ -1,0 +1,40 @@
+/* Styling for the Clarity Outline demo container */
+.clarity-outline-demo {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  
+  /* Extend beyond normal content width */
+  width: calc(100vw - 2rem);
+  margin-left: calc(-50vw + 50% + 1rem);
+  margin-right: calc(-50vw + 50% + 1rem);
+  max-width: none;
+}
+
+/* Ensure the component itself uses the full width */
+.clarity-outline-demo clarity-outline {
+  width: 100%;
+  display: block;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .clarity-outline-demo {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    border-color: #4a5568;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .clarity-outline-demo {
+    margin: 1rem 0;
+    padding: 1rem;
+    width: calc(100vw - 1rem);
+    margin-left: calc(-50vw + 50% + 0.5rem);
+    margin-right: calc(-50vw + 50% + 0.5rem);
+  }
+}
