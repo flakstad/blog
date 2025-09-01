@@ -26,4 +26,4 @@ The outline takes JSON as input and emits events for every interaction. My plan 
 
 My aim is to bring the clarity of org-mode into team-friendly web tools without sacrificing speed or simplicity. Maybe an agenda view or capture templates are up next?
 
-Source code: [https://github.com/flakstad/clarity-outline](https://github.com/flakstad/clarity-outline)
+[Source code](https://github.com/flakstad/clarity-outline)
