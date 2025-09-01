@@ -1,4 +1,4 @@
-class TodoList {
+class Outline {
   constructor(el, options = {}) {
     this.el = el;
     this.options = {
@@ -15,6 +15,8 @@ class TodoList {
         dueDate: options.features?.dueDate !== false, // default: true
         assign: options.features?.assign !== false, // default: true
         tags: options.features?.tags !== false, // default: true
+        notes: options.features?.notes !== false, // default: true
+        remove: options.features?.remove !== false, // default: true
         // status, edit, and open are always enabled (non-customizable)
       },
       ...options
@@ -33,6 +35,11 @@ class TodoList {
     // Initialize child counts for existing items
     this.el.querySelectorAll("li").forEach(li => {
       this.updateChildCount(li);
+    });
+    
+    // Initialize hover button visibility for all items
+    this.el.querySelectorAll("li").forEach(li => {
+      this.updateHoverButtonsVisibility(li);
     });
   }
 
@@ -223,6 +230,26 @@ class TodoList {
         const scheduleBtn = li.querySelector(".schedule-button");
         if (scheduleBtn) {
           this.showSchedulePopup(li, scheduleBtn);
+        }
+        return;
+      }
+
+      // Add notes with 'n' key (only if enabled)
+      if(e.key==="n" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.notes) {
+        e.preventDefault();
+        const notesBtn = li.querySelector(".notes-button");
+        if (notesBtn) {
+          this.showNotesPopup(li, notesBtn);
+        }
+        return;
+      }
+
+      // Remove item with 'r' key (only if enabled)
+      if(e.key==="r" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.remove) {
+        e.preventDefault();
+        const removeBtn = li.querySelector(".remove-button");
+        if (removeBtn) {
+          this.showRemovePopup(li, removeBtn);
         }
         return;
       }
@@ -615,12 +642,7 @@ class TodoList {
   }
 
   updateChildCount(li) {
-    // Don't create child counts for no-label items (headers)
-    if (li.classList.contains("no-label")) {
-        const countSpan = li.querySelector(".child-count");
-        if (countSpan) countSpan.remove();
-        return;
-    }
+    // Headers (no-label) can still display child counts; only children without labels are excluded from counts
 
     const sublist = li.querySelector("ul");
     let countSpan = li.querySelector(".child-count");
@@ -635,7 +657,7 @@ class TodoList {
 
     // Count direct children only (not nested descendants)
     const directChildren = Array.from(sublist.children).filter(c => c.tagName === "LI");
-    // Only count items with labels as "completable" - no-label items are headers
+    // Only count items with labels as "completable" - exclude header-like (no-label) children
     const completableChildren = directChildren.filter(c => !c.classList.contains("no-label"));
     const doneCount = completableChildren.filter(c => c.classList.contains("completed")).length;
 
@@ -1202,6 +1224,32 @@ class TodoList {
       buttonsContainer.appendChild(tagsBtn);
     }
 
+    // Notes button (only if enabled)
+    if (this.options.features.notes) {
+      const notesBtn = document.createElement("button");
+      notesBtn.className = "hover-button notes-button";
+      notesBtn.setAttribute("data-type", "notes");
+      notesBtn.tabIndex = -1; // Remove from tab navigation
+      notesBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.showNotesPopup(li, notesBtn);
+      });
+      buttonsContainer.appendChild(notesBtn);
+    }
+
+    // Remove button (only if enabled)
+    if (this.options.features.remove) {
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "hover-button remove-button";
+      removeBtn.setAttribute("data-type", "remove");
+      removeBtn.tabIndex = -1; // Remove from tab navigation
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.showRemovePopup(li, removeBtn);
+      });
+      buttonsContainer.appendChild(removeBtn);
+    }
+
     // State button (for cycling TODO/DONE/no-label) - always enabled
     const stateBtn = document.createElement("button");
     stateBtn.className = "hover-button state-button";
@@ -1237,6 +1285,26 @@ class TodoList {
     });
     buttonsContainer.appendChild(openBtn);
     
+    // Reorder buttons: open, status, edit, remove, then others
+    const desiredOrder = [
+      '.open-button',
+      '.state-button',
+      '.edit-button',
+      '.remove-button',
+      '.priority-button',
+      '.onhold-button',
+      '.schedule-button',
+      '.assign-button',
+      '.tags-button',
+      '.notes-button'
+    ];
+    desiredOrder.forEach(selector => {
+      const btn = buttonsContainer.querySelector(selector);
+      if (btn) {
+        buttonsContainer.appendChild(btn);
+      }
+    });
+    
     // Insert after the child-count if it exists, otherwise after the text span
     const childCount = li.querySelector(".child-count");
     if (childCount) {
@@ -1250,8 +1318,94 @@ class TodoList {
       }
     }
     
+    // Add hover delay functionality
+    this.addHoverDelayHandlers(li, buttonsContainer);
+    
     // Update button text based on current data
     this.updateHoverButtons(li);
+  }
+
+  addHoverDelayHandlers(li, buttonsContainer) {
+    let hoverTimeout;
+    const delay = 600; // 600ms delay before showing buttons
+    
+    li.addEventListener('mouseenter', () => {
+      // Clear any existing timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+      
+      // Set timeout to show all buttons after delay
+      hoverTimeout = setTimeout(() => {
+        // Show all buttons on hover
+        const allButtons = buttonsContainer.querySelectorAll('.hover-button');
+        allButtons.forEach(btn => {
+          btn.style.display = 'inline';
+        });
+        buttonsContainer.style.display = 'inline-flex';
+      }, delay);
+    });
+    
+    li.addEventListener('mouseleave', () => {
+      // Clear timeout and hide buttons without data immediately
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+      
+      // If a popup is active for this item, keep all buttons visible
+      if (li.classList.contains('popup-active')) {
+        const allButtons = buttonsContainer.querySelectorAll('.hover-button');
+        allButtons.forEach(btn => {
+          btn.style.display = 'inline';
+        });
+        buttonsContainer.style.display = 'inline-flex';
+        return;
+      }
+
+      // Hide buttons without data, keep buttons with data visible
+      const buttonsWithoutData = buttonsContainer.querySelectorAll('.hover-button:not(.has-data)');
+      buttonsWithoutData.forEach(btn => {
+        btn.style.display = 'none';
+      });
+      
+      // Show the container if there are still visible buttons (with data)
+      const buttonsWithData = buttonsContainer.querySelectorAll('.hover-button.has-data');
+      if (buttonsWithData.length > 0 || li.classList.contains('popup-active')) {
+        buttonsContainer.style.display = 'inline-flex';
+      } else {
+        buttonsContainer.style.display = 'none';
+      }
+    });
+  }
+
+  updateHoverButtonsVisibility(li) {
+    const buttonsContainer = li.querySelector('.outline-hover-buttons');
+    if (!buttonsContainer) return;
+    
+    // Always show buttons with data
+    const buttonsWithData = buttonsContainer.querySelectorAll('.hover-button.has-data');
+    buttonsWithData.forEach(btn => {
+      btn.style.display = 'inline';
+    });
+    
+    // Hide buttons without data (unless popup is active)
+    const buttonsWithoutData = buttonsContainer.querySelectorAll('.hover-button:not(.has-data)');
+    buttonsWithoutData.forEach(btn => {
+      if (!li.classList.contains('popup-active')) {
+        btn.style.display = 'none';
+      } else {
+        btn.style.display = 'inline';
+      }
+    });
+    
+    // Show the container if there are visible buttons
+    const visibleButtons = buttonsContainer.querySelectorAll('.hover-button[style*="inline"]');
+    if (visibleButtons.length > 0 || li.classList.contains('popup-active')) {
+      buttonsContainer.style.display = 'inline-flex';
+    } else {
+      buttonsContainer.style.display = 'none';
+    }
   }
 
   updateHoverButtons(li) {
@@ -1260,6 +1414,8 @@ class TodoList {
     const scheduleBtn = li.querySelector(".schedule-button");
     const assignBtn = li.querySelector(".assign-button");
     const tagsBtn = li.querySelector(".tags-button");
+    const notesBtn = li.querySelector(".notes-button");
+    const removeBtn = li.querySelector(".remove-button");
     const stateBtn = li.querySelector(".state-button");
     const editBtn = li.querySelector(".edit-button");
     const openBtn = li.querySelector(".open-button");
@@ -1334,6 +1490,26 @@ class TodoList {
         tagsBtn.classList.remove("has-data");
       }
     }
+
+    // Update notes button (if enabled)
+    if (notesBtn) {
+      const notesSpan = li.querySelector(".outline-notes");
+      if (notesSpan && notesSpan.textContent.trim()) {
+        notesBtn.textContent = "notes";
+        notesBtn.classList.add("has-data");
+        hasAnyData = true;
+      } else {
+        notesBtn.innerHTML = "<u>n</u>otes";
+        notesBtn.classList.remove("has-data");
+      }
+    }
+
+    // Update remove button (if enabled)
+    if (removeBtn) {
+      const hasChildren = !!li.querySelector("ul > li");
+      removeBtn.innerHTML = hasChildren ? "<u>r</u>emove…" : "<u>r</u>emove";
+      removeBtn.classList.remove("has-data");
+    }
     
     // State button always shows "status" 
     stateBtn.innerHTML = "<u>s</u>tatus";
@@ -1354,6 +1530,9 @@ class TodoList {
       li.classList.remove("has-data");
     }
     
+    // Update hover buttons visibility based on has-data state
+    this.updateHoverButtonsVisibility(li);
+    
     // Reorder buttons: set values first, then unset values
     this.reorderHoverButtons(li);
   }
@@ -1361,31 +1540,40 @@ class TodoList {
   reorderHoverButtons(li) {
     const buttonsContainer = li.querySelector(".outline-hover-buttons");
     if (!buttonsContainer) return;
-    
-    // Get all buttons in their current order
-    const buttons = [
-      li.querySelector(".priority-button"),
-      li.querySelector(".onhold-button"),
-      li.querySelector(".schedule-button"),
-      li.querySelector(".assign-button"),
-      li.querySelector(".tags-button"),
-      li.querySelector(".state-button"),
-      li.querySelector(".edit-button"),
-      li.querySelector(".open-button")
-    ].filter(btn => btn); // Remove any null buttons
-    
-    // Separate buttons with data from those without
-    const buttonsWithData = buttons.filter(btn => btn.classList.contains("has-data"));
-    const buttonsWithoutData = buttons.filter(btn => !btn.classList.contains("has-data"));
-    
-    // Create the new order: buttons with data first, then buttons without data
-    const newOrder = [...buttonsWithData, ...buttonsWithoutData];
-    
-    // Remove all buttons from container
+
+    // Build a sortable list of current buttons
+    const buttons = Array.from(buttonsContainer.querySelectorAll('.hover-button'));
+
+    // Desired priority within each group (has-data first group and no-data group)
+    const rankByType = {
+      open: 0,
+      state: 1,
+      edit: 2,
+      remove: 3,
+      priority: 4,
+      onhold: 5,
+      schedule: 6,
+      assign: 7,
+      tags: 8,
+      notes: 9
+    };
+
+    const decorated = buttons.map((btn, index) => {
+      const type = btn.getAttribute('data-type') || '';
+      const hasDataRank = btn.classList.contains('has-data') ? 0 : 1; // 0 first
+      const typeRank = rankByType.hasOwnProperty(type) ? rankByType[type] : 99;
+      return { btn, index, hasDataRank, typeRank };
+    });
+
+    decorated.sort((a, b) => {
+      if (a.hasDataRank !== b.hasDataRank) return a.hasDataRank - b.hasDataRank;
+      if (a.typeRank !== b.typeRank) return a.typeRank - b.typeRank;
+      return a.index - b.index; // stable fallback
+    });
+
+    // Re-append in sorted order
     buttons.forEach(btn => btn.remove());
-    
-    // Add buttons back in the new order
-    newOrder.forEach(btn => buttonsContainer.appendChild(btn));
+    decorated.forEach(({ btn }) => buttonsContainer.appendChild(btn));
   }
 
   closeAllPopups(focusElement = null) {
@@ -1407,9 +1595,10 @@ class TodoList {
       popup.remove();
     });
     
-    // Remove popup-active class from all todo items
+    // Remove popup-active class from all todo items and update hover buttons visibility
     this.el.querySelectorAll('li.popup-active').forEach(li => {
       li.classList.remove('popup-active');
+      this.updateHoverButtonsVisibility(li);
     });
     
     if (focusElement) {
@@ -1428,12 +1617,13 @@ class TodoList {
     // Check if button is visible and has proper dimensions
     const buttonRect = button.getBoundingClientRect();
     if (buttonRect.width === 0 || buttonRect.height === 0) {
-      // Button is not visible (hidden), position relative to the todo item instead
+      // Button is not visible (hidden), position relative to the todo text instead
       const li = button.closest('li');
       if (li) {
-        const liRect = li.getBoundingClientRect();
-        const left = liRect.right - containerRect.left - 200; // Position near right side of todo
-        const top = liRect.top - containerRect.top;
+        const textEl = li.querySelector('.outline-text') || li.querySelector('.outline-label') || li;
+        const refRect = textEl.getBoundingClientRect();
+        const left = refRect.left - containerRect.left;
+        const top = refRect.bottom - containerRect.top + 5;
         popup.style.left = `${Math.max(0, left)}px`;
         popup.style.top = `${top}px`;
         return;
@@ -1452,6 +1642,7 @@ class TodoList {
     
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
     
     const popup = document.createElement('div');
     popup.className = 'outline-popup date-popup';
@@ -1678,6 +1869,7 @@ class TodoList {
     
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
     
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup';
@@ -1825,6 +2017,7 @@ class TodoList {
     
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
     
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup tags-popup';
@@ -1954,6 +2147,231 @@ class TodoList {
     }, 100); // Increased timeout to ensure popup is ready
   }
 
+  showNotesPopup(li, button) {
+    this.closeAllPopups();
+    
+    // Keep metadata visible
+    li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
+    
+    const popup = document.createElement('div');
+    popup.className = 'outline-popup date-popup notes-popup';
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'dropdown-input';
+    textarea.placeholder = 'Add notes…';
+    textarea.style.padding = '0.5rem';
+    textarea.rows = 4;
+    
+    // Prefill from existing
+    const existingNotesSpan = li.querySelector('.outline-notes');
+    if (existingNotesSpan && existingNotesSpan.textContent) {
+      textarea.value = existingNotesSpan.textContent.trim();
+    }
+    popup.appendChild(textarea);
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '0.5rem';
+    buttonContainer.style.marginTop = '0.5rem';
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.className = 'hover-button';
+    saveBtn.style.padding = '0.3rem 0.6rem';
+    saveBtn.style.flex = '1';
+    saveBtn.type = 'button';
+    saveBtn.setAttribute('tabindex', '0');
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'hover-button';
+    cancelBtn.style.padding = '0.3rem 0.6rem';
+    cancelBtn.style.flex = '1';
+    cancelBtn.type = 'button';
+    cancelBtn.setAttribute('tabindex', '0');
+    
+    const handleSave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.setNotes(li, textarea.value.trim());
+      this.closeAllPopups();
+    };
+    const handleCancel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.closeAllPopups(li);
+    };
+    saveBtn.addEventListener('click', handleSave);
+    cancelBtn.addEventListener('click', handleCancel);
+    
+    buttonContainer.appendChild(saveBtn);
+    buttonContainer.appendChild(cancelBtn);
+    popup.appendChild(buttonContainer);
+    
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeAllPopups(li);
+      } else if (e.key === 'Enter' && e.shiftKey) {
+        // allow newline
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSave(e);
+      } else if (e.key === 'Tab') {
+        // Allow normal tab navigation to buttons
+      }
+    });
+
+    saveBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSave(e); }
+      if (e.key === 'Escape') { this.closeAllPopups(li); }
+    });
+
+    cancelBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCancel(e); }
+      if (e.key === 'Escape') { this.closeAllPopups(li); }
+    });
+    
+    this.positionPopup(popup, button);
+    setTimeout(() => textarea.focus(), 0);
+    this.currentPopup = popup;
+    
+    setTimeout(() => {
+      const handleOutsideClick = (e) => {
+        if (popup.contains(e.target) || e.target.closest('outline-list')) return;
+        this.closeAllPopups(li);
+        document.removeEventListener('click', handleOutsideClick);
+      };
+      document.addEventListener('click', handleOutsideClick);
+      popup._outsideClickHandler = handleOutsideClick;
+    }, 100);
+  }
+
+  setNotes(li, notesText) {
+    const textSpan = li.querySelector('.outline-text');
+    if (!textSpan) return;
+    let notesSpan = li.querySelector('.outline-notes');
+    if (!notesSpan) {
+      notesSpan = document.createElement('span');
+      notesSpan.className = 'outline-notes';
+      notesSpan.style.display = 'none';
+      const buttonsContainer = li.querySelector('.outline-hover-buttons');
+      if (buttonsContainer) {
+        buttonsContainer.after(notesSpan);
+      } else {
+        textSpan.after(notesSpan);
+      }
+    }
+    notesSpan.textContent = notesText ? ` ${notesText}` : '';
+    if (!notesText) {
+      notesSpan.remove();
+    }
+    this.updateHoverButtons(li);
+    li.focus();
+    this.emit('outline:notes', {
+      id: li.dataset.id,
+      text: textSpan.textContent,
+      notes: notesText || null
+    });
+  }
+
+  showRemovePopup(li, button) {
+    this.closeAllPopups();
+    li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
+    
+    const popup = document.createElement('div');
+    popup.className = 'outline-popup date-popup remove-popup';
+    
+    const hasChildren = !!li.querySelector('ul > li');
+    const heading = document.createElement('div');
+    heading.textContent = hasChildren ? 'Remove this and all nested items?' : 'Remove?';
+    popup.appendChild(heading);
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '0.5rem';
+    buttonContainer.style.marginTop = '0.5rem';
+    
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = 'Remove';
+    confirmBtn.className = 'hover-button';
+    confirmBtn.style.padding = '0.3rem 0.6rem';
+    confirmBtn.style.flex = '1';
+    confirmBtn.type = 'button';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'hover-button';
+    cancelBtn.style.padding = '0.3rem 0.6rem';
+    cancelBtn.style.flex = '1';
+    cancelBtn.type = 'button';
+    
+    const handleRemove = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.removeItem(li);
+      this.closeAllPopups();
+    };
+    const handleCancel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.closeAllPopups(li);
+    };
+    confirmBtn.addEventListener('click', handleRemove);
+    cancelBtn.addEventListener('click', handleCancel);
+    
+    buttonContainer.appendChild(confirmBtn);
+    buttonContainer.appendChild(cancelBtn);
+    popup.appendChild(buttonContainer);
+    
+    confirmBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { this.closeAllPopups(li); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRemove(e); }
+      // Allow natural Tab/Shift+Tab to move focus
+    });
+    cancelBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { this.closeAllPopups(li); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCancel(e); }
+      // Allow natural Tab/Shift+Tab to move focus
+    });
+    
+    this.positionPopup(popup, button);
+    setTimeout(() => confirmBtn.focus(), 0);
+    this.currentPopup = popup;
+    
+    setTimeout(() => {
+      const handleOutsideClick = (e) => {
+        if (popup.contains(e.target) || e.target.closest('outline-list')) return;
+        this.closeAllPopups(li);
+        document.removeEventListener('click', handleOutsideClick);
+      };
+      document.addEventListener('click', handleOutsideClick);
+      popup._outsideClickHandler = handleOutsideClick;
+    }, 0);
+  }
+
+  removeItem(li) {
+    const id = li.dataset.id;
+    const textSpan = li.querySelector('.outline-text');
+    const detailText = textSpan ? textSpan.textContent : '';
+    const parentLi = li.parentNode.closest('li');
+    const parentUl = li.parentNode;
+    li.remove();
+    if (parentUl && parentUl.tagName === 'UL') {
+      // If parent LI exists, update child count and possibly remove empty ul
+      if (parentLi) {
+        this.updateChildCount(parentLi);
+        const sublist = parentLi.querySelector('ul');
+        if (sublist && sublist.children.length === 0) {
+          parentLi.classList.remove('has-children');
+          sublist.remove();
+        }
+      }
+    }
+    this.emit('outline:remove', { id, text: detailText });
+  }
+
   toggleTag(li, tag, isChecked) {
     const existingTagsSpan = li.querySelector('.outline-tags');
     let currentTags = existingTagsSpan ? 
@@ -2016,6 +2434,7 @@ class TodoList {
     
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
+    this.updateHoverButtonsVisibility(li);
     
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup';
@@ -2278,7 +2697,7 @@ class TodoList {
 }
 
 // Web Component Wrapper
-class TodoListElement extends HTMLElement {
+class OutlineElement extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -2297,7 +2716,7 @@ class TodoListElement extends HTMLElement {
     const todos = this.parseTodos();
     
     // Render todos into the list
-    this.renderTodos(listEl, todos);
+    this.renderTodos(listEl, todos, options);
     
     // Add the list to shadow DOM
     this.shadowRoot.appendChild(listEl);
@@ -2305,8 +2724,8 @@ class TodoListElement extends HTMLElement {
     // Add CSS
     this.addStyles();
     
-    // Initialize the TodoList
-    this.todoList = new TodoList(listEl, options);
+    // Initialize the Outline
+    this.todoList = new Outline(listEl, options);
     
     // Forward events from shadow DOM to light DOM
     this.forwardEvents();
@@ -2321,7 +2740,7 @@ class TodoListElement extends HTMLElement {
   disconnectedCallback() {
     // Clean up if needed
     if (this.todoList) {
-      // Remove event listeners if the TodoList class has a destroy method
+      // Remove event listeners if the Outline class has a destroy method
       if (typeof this.todoList.destroy === 'function') {
         this.todoList.destroy();
       }
@@ -2462,14 +2881,14 @@ class TodoListElement extends HTMLElement {
     return todo;
   }
 
-  renderTodos(listEl, todos) {
+  renderTodos(listEl, todos, options) {
     todos.forEach(todo => {
-      const li = this.createTodoElement(todo);
+      const li = this.createTodoElement(todo, options);
       listEl.appendChild(li);
     });
   }
 
-  createTodoElement(todo) {
+  createTodoElement(todo, options) {
     const li = document.createElement('li');
     li.dataset.id = todo.id;
     li.tabIndex = 0;
@@ -2482,6 +2901,12 @@ class TodoListElement extends HTMLElement {
     // Add status classes based on todo state
     if (todo.status === 'DONE' || todo.completed) {
       li.classList.add('completed');
+    } else if (todo.status && options && options.statusLabels) {
+      // Check if this is a custom status label that should be treated as completed
+      const statusLabel = options.statusLabels.find(label => label.label === todo.status);
+      if (statusLabel && statusLabel.isEndState) {
+        li.classList.add('completed');
+      }
     }
     if (todo.status === 'none' || todo.noLabel) {
       li.classList.add('no-label');
@@ -2570,7 +2995,7 @@ class TodoListElement extends HTMLElement {
     if (todo.children && todo.children.length > 0) {
       const sublist = document.createElement('ul');
       todo.children.forEach(childTodo => {
-        const childLi = this.createTodoElement(childTodo);
+        const childLi = this.createTodoElement(childTodo, options);
         sublist.appendChild(childLi);
       });
       li.appendChild(sublist);
@@ -2593,9 +3018,9 @@ class TodoListElement extends HTMLElement {
       existingAddButton.remove();
     }
     
-    // Reinitialize the TodoList with new content
+    // Reinitialize the Outline with new content
     const options = this.parseOptions();
-    this.todoList = new TodoList(listEl, options);
+    this.todoList = new Outline(listEl, options);
     this.forwardEvents();
   }
 
@@ -2667,7 +3092,7 @@ class TodoListElement extends HTMLElement {
           --clarity-outline-dark-text-secondary: #ddd;
           --clarity-outline-dark-text-muted: #888;
           --clarity-outline-dark-border: #555;
-          --clarity-outline-dark-border-focus: #f92672;
+          --clarity-outline-dark-border-focus: #7aa2e3;
           --clarity-outline-dark-hover: rgba(255, 255, 255, 0.05);
           --clarity-outline-dark-focus: rgba(255, 255, 255, 0.1);
           --clarity-outline-dark-input-bg: #2d2d2d;
@@ -2676,9 +3101,9 @@ class TodoListElement extends HTMLElement {
           --clarity-outline-dark-popup-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           
           /* Semantic colors */
-          --clarity-outline-color-todo: #f92672;
-          --clarity-outline-color-done: #66d9ef;
-          --clarity-outline-color-priority: #ff6b35;
+          --clarity-outline-color-todo: #d16d7a;
+          --clarity-outline-color-done: #6c757d;
+          --clarity-outline-color-priority: #5f9fb0;
           --clarity-outline-color-onhold: #f39c12;
           
           /* Theme variables - inherit from parent or use defaults */
@@ -2689,7 +3114,7 @@ class TodoListElement extends HTMLElement {
           --clarity-outline-text-secondary: var(--clarity-outline-text-secondary, #ddd);
           --clarity-outline-text-muted: var(--clarity-outline-text-muted, #888);
           --clarity-outline-border: var(--clarity-outline-border, #555);
-          --clarity-outline-border-focus: var(--clarity-outline-border-focus, #f92672);
+          --clarity-outline-border-focus: var(--clarity-outline-border-focus, #7aa2e3);
           --clarity-outline-hover: var(--clarity-outline-hover, rgba(255, 255, 255, 0.05));
           --clarity-outline-focus: var(--clarity-outline-focus, rgba(255, 255, 255, 0.1));
           --clarity-outline-input-bg: var(--clarity-outline-input-bg, #2d2d2d);
@@ -2742,6 +3167,9 @@ class TodoListElement extends HTMLElement {
         /* Base list styling */
         list-style: none;
         padding-left: 0;
+        margin: 0;
+        margin-block-start: 0;
+        margin-block-end: 0;
         font-family: var(--clarity-outline-font-family);
         font-size: var(--clarity-outline-font-size);
       
@@ -2778,9 +3206,9 @@ class TodoListElement extends HTMLElement {
             > .outline-label {
               color: var(--clarity-outline-color-done);
             }
-      
+
             > .outline-text {
-              color: var(--clarity-outline-text-muted);
+              color: var(--clarity-outline-color-done);
               text-decoration: line-through;
             }
           }
@@ -2882,27 +3310,7 @@ class TodoListElement extends HTMLElement {
           margin-left: 0.5rem;
         }
       
-        /* Show buttons on hover, or always show if todo has data, or when popup is active */
-        li:hover > .outline-hover-buttons,
-        li.has-data .outline-hover-buttons,
-        li.popup-active .outline-hover-buttons {
-          display: inline-flex;
-        }
-      
-        /* When todo has data but not hovering and no popup active, only show buttons with data */
-        li.has-data:not(:hover):not(.popup-active) .outline-hover-buttons .hover-button:not(.has-data) {
-          display: none;
-        }
-      
-        /* Prevent parent hover effects when hovering over children */
-        li > ul li:hover ~ .outline-hover-buttons {
-          display: none;
-        }
-      
-        /* But allow data buttons to show even when hovering over children */
-        li > ul li:hover ~ .outline-hover-buttons .hover-button.has-data {
-          display: inline;
-        }
+        /* Note: Button visibility is now handled entirely by JavaScript */
       
         .hover-button {
           background: none;
@@ -3092,7 +3500,8 @@ class TodoListElement extends HTMLElement {
       'outline:add', 'outline:toggle', 'outline:move', 'outline:indent', 'outline:outdent',
       'outline:collapse', 'outline:expand', 'outline:edit:start', 'outline:edit:save',
       'outline:edit:cancel', 'outline:due', 'outline:assign', 'outline:tags',
-      'outline:priority', 'outline:onhold', 'outline:navigate', 'outline:select'
+      'outline:priority', 'outline:onhold', 'outline:navigate', 'outline:select',
+      'outline:notes', 'outline:remove'
     ];
     
     // Get the list element where events are dispatched
@@ -3111,7 +3520,7 @@ class TodoListElement extends HTMLElement {
     });
   }
 
-  // Public API methods that delegate to the TodoList instance
+  // Public API methods that delegate to the Outline instance
   getItems() {
     return this.todoList ? this.todoList.getItems() : [];
   }
@@ -3134,16 +3543,16 @@ class TodoListElement extends HTMLElement {
     }
   }
 
-  // Getter for the TodoList instance
+  // Getter for the Outline instance
   get todoListInstance() {
     return this.todoList;
   }
 }
 
 // Register the web component
-customElements.define('clarity-outline', TodoListElement);
+customElements.define('clarity-outline', OutlineElement);
 
 // Export for module systems if needed
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { TodoListElement };
+  module.exports = { OutlineElement };
 }

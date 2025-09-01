@@ -106,6 +106,17 @@ span.subtitle {
   margin-top: 1.5rem;
 }
 
+/* Post content links - match header/footer styling */
+.post-content a {
+  color: #0077cc;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.post-content a:hover {
+  color: #005499;
+}
+
 /* Footer styling */
 .post-footer {
   margin-top: 3rem;
@@ -183,13 +194,15 @@ nav a:hover {
 
   .custom-header a,
   .custom-footer a,
-  nav a {
+  nav a,
+  .post-content a {
     color: #9cf;
   }
 
   .custom-header a:hover,
   .custom-footer a:hover,
-  nav a:hover {
+  nav a:hover,
+  .post-content a:hover {
     color: #6ae;
   }
 
