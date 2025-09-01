@@ -20,7 +20,7 @@ Here’s what it looks like:
 
 {{< clarity-outline-simple >}}
 
-The component is designed for keyboard-first interaction. You can fly through your tasks with arrows, use `Alt+arrow` to indent or outdent, and `Alt+Tab` to collapse or expand. When an item is focused, actions can be done with a single key press: **E** to edit, **S** to change status, **P** to mark priority, **A** to assign, etc. Mouse users aren’t left out: hover actions expose the same controls with shortcut hints. You won’t rich task descriptions, comment threads or file uploads here; those belong on dedicated item pages. This component is the fast, structured backbone you can plug into bigger systems.
+The component is designed for keyboard-first interaction. You can fly through your tasks with arrows, use `Alt+arrow` to indent or outdent, and `Alt+Tab` to collapse or expand. When an item is focused, actions can be done with a single key press: **E** to edit, **S** to change status, **P** to mark priority, **A** to assign, etc. Mouse users aren’t left out: hover actions expose the same controls with shortcut hints. You won’t see rich task descriptions, comment threads or file uploads here; I think those belong on dedicated item pages. This component is the fast, structured backbone you can plug into bigger systems.
 
 The outline takes JSON as input and emits events for every interaction. My plan is to drive it with [Datastar](https://data-star.dev/) with the server pushing live updates, but it can slot into any context.
 
