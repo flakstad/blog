@@ -2,17 +2,17 @@ class Outline {
   constructor(el, options = {}) {
     this.el = el;
     this.options = {
-      assignees: options.assignees || ['alice', 'bob', 'charlie', 'diana', 'eve'],
-      tags: options.tags || ['urgent', 'bug', 'feature', 'docs', 'review'],
+      assignees: options.assignees || [],
+      tags: options.tags || [],
       statusLabels: options.statusLabels || [
         { label: 'TODO', isEndState: false },
         { label: 'DONE', isEndState: true }
       ],
-      // Feature options - which features should be enabled
       features: {
         priority: options.features?.priority !== false, // default: true
-        onHold: options.features?.onHold !== false, // default: true
-        dueDate: options.features?.dueDate !== false, // default: true
+        blocked: options.features?.blocked !== false, // default: true
+        due: (options.features?.due !== undefined ? options.features.due !== false : (options.features?.dueDate !== undefined ? options.features.dueDate !== false : true)), // default: true (backward compatibility with dueDate)
+        schedule: options.features?.schedule !== false, // default: true
         assign: options.features?.assign !== false, // default: true
         tags: options.features?.tags !== false, // default: true
         notes: options.features?.notes !== false, // default: true
@@ -31,12 +31,12 @@ class Outline {
     });
     this.bindEvents();
     this.initNewTodoButton();
-    
+
     // Initialize child counts for existing items
     this.el.querySelectorAll("li").forEach(li => {
       this.updateChildCount(li);
     });
-    
+
     // Initialize hover button visibility for all items
     this.el.querySelectorAll("li").forEach(li => {
       this.updateHoverButtonsVisibility(li);
@@ -48,7 +48,7 @@ class Outline {
     if (this.addButton) {
       return; // Button already exists, don't create another one
     }
-    
+
     // Create the add button
     this.addButton = document.createElement("button");
     this.addButton.className = "hover-button outline-add-button";
@@ -56,7 +56,7 @@ class Outline {
     this.addButton.addEventListener("click", () => {
       this.createNewTodo();
     });
-    
+
     // Insert the button after the list
     this.el.parentNode.insertBefore(this.addButton, this.el.nextSibling);
   }
@@ -91,8 +91,8 @@ class Outline {
     this.enterEditMode(newLi);
 
     // Emit add event
-    this.emit("outline:add", { 
-      text: "New todo", 
+    this.emit("outline:add", {
+      text: "New todo",
       id: newLi.dataset.id,
       parentId: null
     });
@@ -126,14 +126,14 @@ class Outline {
       // Single click: just focus/select the item (no navigation)
       li.focus();
       console.log("Todo item selected", li.dataset.id);
-      
+
       this.emit("outline:select", {
         id: li.dataset.id,
         text: li.querySelector(".outline-text").textContent
       });
     });
 
-    // Add double-click for navigation to solo view
+    // Add double-click for edit mode
     this.el.addEventListener("dblclick", e => {
       const li = e.target.closest("li");
       if (!li) return;
@@ -143,19 +143,19 @@ class Outline {
         return; // Let button handle its own click
       }
 
-      // Check if click is on edit input (don't navigate when editing)
+      // Check if click is on edit input (don't enter edit mode when already editing)
       if (e.target.classList.contains("outline-edit-input")) {
         return; // Let edit input handle its own clicks
       }
 
-      // Double click: navigate to solo view
-      console.log("Todo item double-clicked - navigating", li.dataset.id);
-      this.navigateToSoloView(li);
+      // Double click: enter edit mode
+      console.log("Todo item double-clicked - entering edit mode", li.dataset.id);
+      this.enterEditMode(li);
     });
 
     this.el.addEventListener("keydown", e => {
       const li = e.target.closest("li");
-      
+
       // If there's a popup open, handle limited keyboard events
       const activePopup = this.el.querySelector('.outline-popup');
       if (activePopup) {
@@ -167,7 +167,7 @@ class Outline {
             return;
           }
           // Allow opening new popups (this will close the current one)
-          if (e.key === 'd' || e.key === 'a' || e.key === 't') {
+          if (e.key === 'd' || e.key === 'c' || e.key === 'a' || e.key === 't') {
             // Let the event continue to be processed
           } else {
             return;
@@ -177,7 +177,7 @@ class Outline {
           return;
         }
       }
-      
+
       if(!li) return;
 
       // If any todo is in edit mode, ignore all shortcuts except for the edit input itself
@@ -200,6 +200,78 @@ class Outline {
         return;
       }
 
+      // Handle Alt key combinations FIRST (before single-key shortcuts)
+      if(e.altKey && !e.ctrlKey && !e.metaKey) {
+        console.log('Alt key detected:', e.code, 'idx:', idx, 'siblings:', siblings.length, 'e.altKey:', e.altKey, 'e.key:', e.key);
+
+        // Move item down (Alt+N, Alt+J, Alt+ArrowDown)
+        const moveDownKeys = ['KeyN', 'KeyJ', 'ArrowDown'];
+        if(moveDownKeys.includes(e.code)){
+          if(idx<siblings.length-1){
+            console.log(`Alt+${e.code}: Moving item down, idx:`, idx, 'siblings:', siblings.length);
+            e.preventDefault();
+            if(e.code === 'ArrowDown') {
+              // Arrow key logic
+              li.parentNode.insertBefore(li, siblings[idx+1].nextSibling);
+            } else {
+              // Emacs/Vi key logic
+              const nextSibling = siblings[idx+1];
+              if (nextSibling.nextSibling) {
+                li.parentNode.insertBefore(li, nextSibling.nextSibling);
+              } else {
+                li.parentNode.appendChild(li);
+              }
+            }
+            // Recalculate siblings after the move to ensure proper state
+            const newSiblings = this.getSiblings(li);
+            const newIdx = newSiblings.indexOf(li);
+            li.focus();
+            this.emit("outline:move",{id:li.dataset.id,from:idx,to:newIdx});
+            return;
+          } else {
+            console.log(`Alt+${e.code}: Cannot move down - item is last in level, idx:`, idx, 'siblings:', siblings.length);
+          }
+        }
+
+        // Move item up (Alt+P, Alt+K, Alt+ArrowUp)
+        const moveUpKeys = ['KeyP', 'KeyK', 'ArrowUp'];
+        if(moveUpKeys.includes(e.code)){
+          if(idx>0){
+            console.log(`Alt+${e.code}: Moving item up, idx:`, idx, 'siblings:', siblings.length);
+            e.preventDefault();
+            li.parentNode.insertBefore(li, siblings[idx-1]);
+            // Recalculate siblings after the move to ensure proper state
+            const newSiblings = this.getSiblings(li);
+            const newIdx = newSiblings.indexOf(li);
+            li.focus();
+            this.emit("outline:move",{id:li.dataset.id,from:idx,to:newIdx});
+            return;
+          } else {
+            console.log(`Alt+${e.code}: Cannot move up - item is first in level, idx:`, idx, 'siblings:', siblings.length);
+          }
+        }
+
+        // Indent item (Alt+F, Alt+L, Alt+ArrowRight)
+        const indentKeys = ['KeyF', 'KeyL', 'ArrowRight'];
+        if(indentKeys.includes(e.code)){
+          console.log(`Alt+${e.code}: Indenting item`);
+          e.preventDefault();
+          this.indentItem(li);
+          return;
+        }
+
+        // Outdent item (Alt+B, Alt+H, Alt+ArrowLeft)
+        const outdentKeys = ['KeyB', 'KeyH', 'ArrowLeft'];
+        if(outdentKeys.includes(e.code)){
+          console.log(`Alt+${e.code}: Outdenting item`);
+          e.preventDefault();
+          this.outdentItem(li);
+          return;
+        }
+
+
+      }
+
       // Add/cycle tags with 't' key
       if(e.key==="t" && !e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -217,15 +289,25 @@ class Outline {
         return;
       }
 
-      // Toggle on hold with 'h' key (only if enabled)
-      if(e.key==="h" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.onHold) {
+      // Toggle blocked with 'b' key (only if enabled)
+      if(e.key==="b" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.blocked) {
         e.preventDefault();
-        this.toggleOnHold(li);
+        this.toggleBlocked(li);
         return;
       }
 
       // Set due date with 'd' key (only if enabled)
-      if(e.key==="d" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.dueDate) {
+      if(e.key==="d" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.due) {
+        e.preventDefault();
+        const dueBtn = li.querySelector(".due-button");
+        if (dueBtn) {
+          this.showDuePopup(li, dueBtn);
+        }
+        return;
+      }
+
+      // Set schedule date with 'c' key (only if enabled)
+      if(e.key==="c" && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.schedule) {
         e.preventDefault();
         const scheduleBtn = li.querySelector(".schedule-button");
         if (scheduleBtn) {
@@ -274,17 +356,17 @@ class Outline {
         return;
       }
 
-      // Open solo view with 'o' key
+      // Open item with 'o' key
       if(e.key==="o" && !e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        this.navigateToSoloView(li);
+        this.openItem(li);
         return;
       }
 
-      // Navigate to solo view with Enter
+      // Open item with Enter
       if(e.key==="Enter" && !e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        this.navigateToSoloView(li);
+        this.openItem(li);
         return;
       }
 
@@ -295,14 +377,12 @@ class Outline {
         return;
       }
 
-      // Cycle collapsed/expanded with Alt+Tab
-      if(e.key==="Tab" && e.altKey && !e.ctrlKey && !e.metaKey) {
+      // Cycle collapsed/expanded with Alt+T (toggle hierarchy)
+      if(e.code==="KeyT" && e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         this.cycleCollapsedState(li);
         return;
       }
-
-
 
       // Cycle states with Shift + left/right arrows
       if(e.key==="ArrowLeft" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
@@ -317,8 +397,26 @@ class Outline {
         return;
       }
 
-      // Navigate
-      if(e.key==="ArrowDown") {
+      // Toggle priority with Shift + up/down arrows (only if enabled)
+      if(e.key==="ArrowUp" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.priority) {
+        e.preventDefault();
+        this.togglePriority(li);
+        return;
+      }
+
+      if(e.key==="ArrowDown" && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && this.options.features.priority) {
+        e.preventDefault();
+        this.togglePriority(li);
+        return;
+      }
+
+      // Focus Navigation - Move Down (ArrowDown, Ctrl+N, J)
+      const moveDownKeys = ['ArrowDown', 'n', 'j'];
+      if(moveDownKeys.includes(e.key) &&
+         ((e.key === 'ArrowDown' && !e.altKey && !e.ctrlKey && !e.metaKey) ||
+          (e.key === 'n' && e.ctrlKey && !e.altKey && !e.metaKey) ||
+          (e.key === 'j' && !e.altKey && !e.ctrlKey && !e.metaKey))) {
+        console.log(`Focus: Moving down with ${e.key} (${e.ctrlKey ? 'Ctrl+' : ''}${e.key})`);
         e.preventDefault();
         if(idx < siblings.length - 1) {
           siblings[idx+1].focus();
@@ -326,9 +424,16 @@ class Outline {
           // last child, move to next available item by traversing up the hierarchy
           this.navigateToNextItem(li);
         }
+        return;
       }
 
-      if(e.key==="ArrowUp") {
+      // Focus Navigation - Move Up (ArrowUp, Ctrl+P, K)
+      const moveUpKeys = ['ArrowUp', 'p', 'k'];
+      if(moveUpKeys.includes(e.key) &&
+         ((e.key === 'ArrowUp' && !e.altKey && !e.ctrlKey && !e.metaKey) ||
+          (e.key === 'p' && e.ctrlKey && !e.altKey && !e.metaKey) ||
+          (e.key === 'k' && !e.altKey && !e.ctrlKey && !e.metaKey))) {
+        console.log(`Focus: Moving up with ${e.key} (${e.ctrlKey ? 'Ctrl+' : ''}${e.key})`);
         e.preventDefault();
         if(idx > 0) {
           siblings[idx-1].focus();
@@ -337,59 +442,47 @@ class Outline {
           const parentLi = li.parentNode.closest("li");
           if(parentLi) parentLi.focus();
         }
+        return;
       }
 
-      // Navigate into first child with right arrow (if no Alt)
-      // Navigate into first child with right arrow (if no Alt)
-      if (!e.altKey && e.key === "ArrowRight") {
+      // Focus Navigation - Move Right/Forward (ArrowRight, Ctrl+F, L)
+      const moveRightKeys = ['ArrowRight', 'f', 'l'];
+      if(moveRightKeys.includes(e.key) &&
+         ((e.key === 'ArrowRight' && !e.altKey && !e.ctrlKey && !e.metaKey) ||
+          (e.key === 'f' && e.ctrlKey && !e.altKey && !e.metaKey) ||
+          (e.key === 'l' && !e.altKey && !e.ctrlKey && !e.metaKey))) {
+        console.log(`Focus: Moving right/forward with ${e.key} (${e.ctrlKey ? 'Ctrl+' : ''}${e.key})`);
+        e.preventDefault();
         const sublist = li.querySelector("ul");
         if (sublist && sublist.children.length > 0) {
-          e.preventDefault();
-
           // If collapsed, expand first-level children only
           if (li.classList.contains("collapsed")) {
             this.expandItem(li); // only expands direct children
           }
-
           const firstChild = sublist.querySelector("li");
           if (firstChild) firstChild.focus();
         }
+        return;
       }
 
-
-      // Navigate back to parent with left arrow (if no Alt)
-      if (!e.altKey && e.key === "ArrowLeft") {
+      // Focus Navigation - Move Left/Backward (ArrowLeft, Ctrl+B, H)
+      const moveLeftKeys = ['ArrowLeft', 'b', 'h'];
+      if(moveLeftKeys.includes(e.key) &&
+         ((e.key === 'ArrowLeft' && !e.altKey && !e.ctrlKey && !e.metaKey) ||
+          (e.key === 'b' && e.ctrlKey && !e.altKey && !e.metaKey) ||
+          (e.key === 'h' && !e.altKey && !e.ctrlKey && !e.metaKey))) {
+        console.log(`Focus: Moving left/backward with ${e.key} (${e.ctrlKey ? 'Ctrl+' : ''}${e.key})`);
+        e.preventDefault();
         const parentLi = li.parentNode.closest("li");
         if (parentLi) {
-          e.preventDefault();
           parentLi.focus();
         }
+        return;
       }
 
 
 
-      // Alt keys
-      if(e.altKey){
-        // Reorder
-        if(e.key==="ArrowUp" && idx>0){
-          e.preventDefault();
-          li.parentNode.insertBefore(li, siblings[idx-1]);
-          li.focus();
-          this.emit("outline:move",{id:li.dataset.id,from:idx,to:idx-1});
-        }
-        if(e.key==="ArrowDown" && idx<siblings.length-1){
-          e.preventDefault();
-          li.parentNode.insertBefore(siblings[idx+1], li);
-          li.focus();
-          this.emit("outline:move",{id:li.dataset.id,from:idx,to:idx+1});
-        }
-        // Hierarchy
-        if(e.key==="ArrowRight"){ e.preventDefault(); this.indentItem(li); }
-        if(e.key==="ArrowLeft"){ e.preventDefault(); this.outdentItem(li); }
-        // Collapse / Expand
-        if(e.key.toUpperCase()==="H"){ e.preventDefault(); this.collapseItem(li); }
-        if(e.key.toUpperCase()==="L"){ e.preventDefault(); this.expandItem(li); }
-      }
+
     });
 
     this.el.addEventListener("click", e=>{
@@ -412,9 +505,9 @@ class Outline {
     // Get current status index
     const currentText = label.textContent.trim();
     const currentIndex = this.options.statusLabels.findIndex(status => status.label === currentText);
-    
+
     let nextState;
-    
+
     if (li.classList.contains("completed")) {
       // Last status → no label
       nextState = "none";
@@ -431,7 +524,7 @@ class Outline {
       // current status → next status
       nextState = `status-${currentIndex + 1}`;
       label.textContent = this.options.statusLabels[currentIndex + 1].label;
-      
+
       // Check if this should be treated as completed
       if (this.options.statusLabels[currentIndex + 1].isEndState) {
         li.classList.add("completed");
@@ -443,10 +536,10 @@ class Outline {
       const remainingEndStates = this.options.statusLabels
         .slice(currentIndex + 1)
         .filter(status => status.isEndState);
-      
+
       if (remainingEndStates.length > 0) {
         // Go to next end state
-        const nextEndStateIndex = this.options.statusLabels.findIndex((status, index) => 
+        const nextEndStateIndex = this.options.statusLabels.findIndex((status, index) =>
           index > currentIndex && status.isEndState
         );
         nextState = `status-${nextEndStateIndex}`;
@@ -538,14 +631,14 @@ class Outline {
     const siblings=this.getSiblings(li); const idx=siblings.indexOf(li);
     if(idx===0) return;
     const prev=siblings[idx-1];
-    
+
     // Store the old parent before moving the item
     const oldParentLi = li.parentNode.closest("li");
-    
+
     let sublist=prev.querySelector("ul");
-    if(!sublist){ 
-      sublist=document.createElement("ul"); 
-      prev.appendChild(sublist); 
+    if(!sublist){
+      sublist=document.createElement("ul");
+      prev.appendChild(sublist);
       prev.classList.add("has-children");
     }
     sublist.appendChild(li); li.focus();
@@ -553,14 +646,14 @@ class Outline {
 
     // Update child counts for all affected parents
     this.updateChildCount(prev);
-    
+
     // Update counts for any grandparents of the new parent
     let grandparentLi = prev.parentNode.closest("li");
     while (grandparentLi) {
       this.updateChildCount(grandparentLi);
       grandparentLi = grandparentLi.parentNode.closest("li");
     }
-    
+
     // Update the old parent's child count (if it was a parent)
     if (oldParentLi && oldParentLi !== prev) {
       this.updateChildCount(oldParentLi);
@@ -571,7 +664,7 @@ class Outline {
         oldGrandparentLi = oldGrandparentLi.parentNode.closest("li");
       }
     }
-    
+
     // Update counts for any parents of the moved item (if it had children)
     const movedItemChildren = li.querySelectorAll("li");
     if (movedItemChildren.length > 0) {
@@ -589,21 +682,21 @@ class Outline {
 
     // Update child counts for all affected parents
     this.updateChildCount(parentLi);
-    
+
     // Update counts for any grandparents of the old parent
     let grandparentLi = parentLi.parentNode.closest("li");
     while (grandparentLi) {
       this.updateChildCount(grandparentLi);
       grandparentLi = grandparentLi.parentNode.closest("li");
     }
-    
+
     // Remove has-children class and empty ul if no more children
     const sublist = parentLi.querySelector("ul");
     if (sublist && sublist.children.length === 0) {
       parentLi.classList.remove("has-children");
       sublist.remove();
     }
-    
+
     // Update counts for any new parents of the moved item
     const newParentLi = li.parentNode.closest("li");
     if (newParentLi) {
@@ -615,7 +708,7 @@ class Outline {
         newGrandparentLi = newGrandparentLi.parentNode.closest("li");
       }
     }
-    
+
     // Update counts for the moved item itself (if it had children)
     const movedItemChildren = li.querySelectorAll("li");
     if (movedItemChildren.length > 0) {
@@ -695,38 +788,38 @@ class Outline {
   enterEditMode(li) {
     // Don't enter edit mode if already editing
     if (li.classList.contains("editing")) return;
-    
+
     const textSpan = li.querySelector(".outline-text");
     if (!textSpan) return;
-    
+
     const currentText = textSpan.textContent;
-    
+
     // Create input element
     const input = document.createElement("input");
     input.type = "text";
     input.className = "outline-edit-input";
     input.value = currentText;
-    
+
     // Add editing class and insert input
     li.classList.add("editing");
     textSpan.after(input);
-    
+
     // Hide child-count when entering edit mode
     const childCount = li.querySelector(".child-count");
     if (childCount) {
       childCount.style.display = "none";
     }
-    
+
     // Hide hover buttons when entering edit mode
     const hoverButtons = li.querySelector(".outline-hover-buttons");
     if (hoverButtons) {
       hoverButtons.style.display = "none";
     }
-    
+
     // Focus and select all text
     input.focus();
     input.select();
-    
+
     // Handle input events
     const handleKeydown = (e) => {
       if (e.key === "Enter") {
@@ -745,97 +838,97 @@ class Outline {
         this.exitEditMode(li);
       }
     };
-    
+
     const handleBlur = () => {
       this.saveEdit(li, input.value);
     };
-    
+
     input.addEventListener("keydown", handleKeydown);
     input.addEventListener("blur", handleBlur);
-    
+
     // Store event handlers for cleanup
     input._handleKeydown = handleKeydown;
     input._handleBlur = handleBlur;
-    
+
     this.emit("outline:edit:start", {
       id: li.dataset.id,
       originalText: currentText
     });
   }
-  
+
   exitEditMode(li) {
     const input = li.querySelector(".outline-edit-input");
     if (!input) return;
-    
+
     // Remove event listeners
     input.removeEventListener("keydown", input._handleKeydown);
     input.removeEventListener("blur", input._handleBlur);
-    
+
     // Remove input and editing class
     input.remove();
     li.classList.remove("editing");
-    
+
     // Show child-count when exiting edit mode
     const childCount = li.querySelector(".child-count");
     if (childCount) {
       childCount.style.display = "";
     }
-    
+
     // Show hover buttons when exiting edit mode
     const hoverButtons = li.querySelector(".outline-hover-buttons");
     if (hoverButtons) {
       hoverButtons.style.display = "";
     }
-    
+
     // Restore focus to li
     li.focus();
-    
+
     this.emit("outline:edit:cancel", {
       id: li.dataset.id
     });
   }
-  
+
   saveEdit(li, newText) {
     const input = li.querySelector(".outline-edit-input");
     if (!input) return;
-    
+
     const textSpan = li.querySelector(".outline-text");
     const originalText = textSpan.textContent;
-    
+
     // Trim whitespace
     newText = newText.trim();
-    
+
     // If empty, revert to original
     if (!newText) {
       newText = originalText;
     }
-    
+
     // Update text content
     textSpan.textContent = newText;
-    
+
     // Remove event listeners
     input.removeEventListener("keydown", input._handleKeydown);
     input.removeEventListener("blur", input._handleBlur);
-    
+
     // Remove input and editing class
     input.remove();
     li.classList.remove("editing");
-    
+
     // Show child-count when saving edit
     const childCount = li.querySelector(".child-count");
     if (childCount) {
       childCount.style.display = "";
     }
-    
+
     // Show hover buttons when saving edit
     const hoverButtons = li.querySelector(".outline-hover-buttons");
     if (hoverButtons) {
       hoverButtons.style.display = "";
     }
-    
+
     // Restore focus to li
     li.focus();
-    
+
     // Emit event if text actually changed
     if (newText !== originalText) {
       this.emit("outline:edit:save", {
@@ -854,22 +947,22 @@ class Outline {
     // Find the parent container (either main ul or parent li's sublist)
     const parentContainer = li.parentNode;
     const parentLi = parentContainer.closest("li");
-    
+
     // Create new todo item
     const newLi = document.createElement("li");
     newLi.tabIndex = 0;
     newLi.dataset.id = crypto.randomUUID();
-    
+
     // Create label span
     const label = document.createElement("span");
     label.className = "outline-label";
     label.textContent = "TODO";
-    
+
     // Create text span with placeholder
     const spanText = document.createElement("span");
     spanText.className = "outline-text";
     spanText.textContent = "New todo";
-    
+
         newLi.appendChild(label);
     // Add a space between label and text (like in HTML)
     newLi.appendChild(document.createTextNode(" "));
@@ -894,9 +987,9 @@ class Outline {
 
     // Enter edit mode immediately
     this.enterEditMode(newLi);
-    
-    this.emit("outline:add", { 
-      text: "New todo", 
+
+    this.emit("outline:add", {
+      text: "New todo",
       id: newLi.dataset.id,
       parentId: parentLi?.dataset.id || null
     });
@@ -904,15 +997,15 @@ class Outline {
 
   cycleCollapsedState(li) {
     const sublist = li.querySelector("ul");
-    
+
     // Count actual child li elements
     const childItems = sublist ? Array.from(sublist.children).filter(c => c.tagName === "LI") : [];
-    
+
     if (childItems.length === 0) {
       // No children, nothing to collapse/expand
       return;
     }
-    
+
     if (li.classList.contains("collapsed")) {
       // Currently collapsed, expand it
       this.expandItem(li);
@@ -925,43 +1018,33 @@ class Outline {
   navigateToNextItem(li) {
     // Traverse up the hierarchy until we find a parent with a next sibling
     let currentLi = li;
-    
+
     while (currentLi) {
       const parentUl = currentLi.parentNode;
       const parentLi = parentUl.closest("li");
-      
+
       if (!parentLi) {
         // We've reached the root level, no more navigation possible
         return;
       }
-      
+
       // Get siblings of the parent
       const parentSiblings = Array.from(parentLi.parentNode.children).filter(c => c.tagName === "LI");
       const parentIdx = parentSiblings.indexOf(parentLi);
-      
+
       if (parentIdx < parentSiblings.length - 1) {
         // Found a parent with a next sibling, focus on it
         parentSiblings[parentIdx + 1].focus();
         return;
       }
-      
+
       // This parent is also the last child, continue traversing up
       currentLi = parentLi;
     }
   }
 
-  navigateToSoloView(li) {
-    const todoId = li.dataset.id;
-    const todoText = li.querySelector(".outline-text")?.textContent;
-    const todoStatus = li.classList.contains("completed") ? "completed" : 
-                      li.classList.contains("no-label") ? "heading" : "todo";
-    
-    // Navigate to todo detail page with URL parameters
-    // Navigation to todo detail page removed - todo.html no longer exists
-// const url = `demos/todo.html?id=${encodeURIComponent(todoId)}&text=${encodeURIComponent(todoText)}&status=${encodeURIComponent(todoStatus)}`;
-    // window.location.href = url;
-    
-    this.emit("outline:navigate", {
+  openItem(li) {
+    this.emit("outline:open", {
       id: li.dataset.id,
       text: li.querySelector(".outline-text")?.textContent
     });
@@ -974,9 +1057,9 @@ class Outline {
     // Get current status index
     const currentText = label.textContent.trim();
     const currentIndex = this.options.statusLabels.findIndex(status => status.label === currentText);
-    
+
     let nextState;
-    
+
     if (li.classList.contains("no-label")) {
       // no label → first status
       nextState = `status-0`;
@@ -987,7 +1070,7 @@ class Outline {
       // current status → next status
       nextState = `status-${currentIndex + 1}`;
       label.textContent = this.options.statusLabels[currentIndex + 1].label;
-      
+
               // Check if this should be treated as completed
         if (this.options.statusLabels[currentIndex + 1].isEndState) {
           li.classList.add("completed");
@@ -999,10 +1082,10 @@ class Outline {
       const remainingEndStates = this.options.statusLabels
         .slice(currentIndex + 1)
         .filter(status => status.isEndState);
-      
+
       if (remainingEndStates.length > 0) {
         // Go to next end state
-        const nextEndStateIndex = this.options.statusLabels.findIndex((status, index) => 
+        const nextEndStateIndex = this.options.statusLabels.findIndex((status, index) =>
           index > currentIndex && status.isEndState
         );
         nextState = `status-${nextEndStateIndex}`;
@@ -1048,9 +1131,9 @@ class Outline {
     // Get current status index
     const currentText = label.textContent.trim();
     const currentIndex = this.options.statusLabels.findIndex(status => status.label === currentText);
-    
+
     let nextState;
-    
+
     if (li.classList.contains("no-label")) {
       // no label → last end state
       const endStateIndices = this.options.statusLabels
@@ -1066,7 +1149,7 @@ class Outline {
       // current status → previous status
       nextState = `status-${currentIndex - 1}`;
       label.textContent = this.options.statusLabels[currentIndex - 1].label;
-      
+
               // Check if this should be treated as completed
         if (this.options.statusLabels[currentIndex - 1].isEndState) {
           li.classList.add("completed");
@@ -1116,42 +1199,6 @@ class Outline {
     this.setScheduleDate(li, now);
   }
 
-  assignItem(li) {
-    const assignSpan = li.querySelector(".outline-assign");
-    
-    // For demo purposes, cycle through some example assignees
-    const assignees = ["alice", "bob", "charlie", "diana"];
-    const currentAssignee = assignSpan ? assignSpan.textContent.trim() : "";
-    const currentIndex = assignees.indexOf(currentAssignee);
-    const nextIndex = (currentIndex + 1) % assignees.length;
-    const nextAssignee = assignees[nextIndex];
-    
-    this.setAssignee(li, nextAssignee);
-  }
-
-  tagItem(li) {
-    const tagsSpan = li.querySelector(".outline-tags");
-
-    // For demo purposes, cycle through some example tag combinations
-    const tagSets = [
-      ["urgent"],
-      ["urgent", "bug"],
-      ["feature"],
-      ["feature", "ui"],
-      ["docs"],
-      []  // no tags
-    ];
-    
-    const currentTags = tagsSpan ? tagsSpan.textContent.trim() : "";
-    const currentIndex = tagSets.findIndex(tags => 
-      tags.length === 0 ? currentTags === "" : currentTags === ` ${tags.join(" ")}`
-    );
-    const nextIndex = (currentIndex + 1) % tagSets.length;
-    const nextTags = tagSets[nextIndex];
-    
-    this.setTags(li, nextTags);
-  }
-
   addHoverButtons(li) {
     // Don't add buttons if they already exist
     if (li.querySelector(".outline-hover-buttons")) return;
@@ -1172,21 +1219,34 @@ class Outline {
       buttonsContainer.appendChild(priorityBtn);
     }
 
-    // On hold button (only if enabled)
-    if (this.options.features.onHold) {
-      const onHoldBtn = document.createElement("button");
-      onHoldBtn.className = "hover-button onhold-button";
-      onHoldBtn.setAttribute("data-type", "onhold");
-      onHoldBtn.tabIndex = -1; // Remove from tab navigation
-      onHoldBtn.addEventListener("click", (e) => {
+          // Blocked button (only if enabled)
+      if (this.options.features.blocked) {
+        const blockedBtn = document.createElement("button");
+        blockedBtn.className = "hover-button blocked-button";
+        blockedBtn.setAttribute("data-type", "blocked");
+        blockedBtn.tabIndex = -1; // Remove from tab navigation
+        blockedBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.toggleBlocked(li);
+        });
+        buttonsContainer.appendChild(blockedBtn);
+      }
+
+    // Due button (only if enabled)
+    if (this.options.features.due) {
+      const dueBtn = document.createElement("button");
+      dueBtn.className = "hover-button due-button";
+      dueBtn.setAttribute("data-type", "due");
+      dueBtn.tabIndex = -1; // Remove from tab navigation
+      dueBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.toggleOnHold(li);
+        this.showDuePopup(li, dueBtn);
       });
-      buttonsContainer.appendChild(onHoldBtn);
+      buttonsContainer.appendChild(dueBtn);
     }
 
     // Schedule button (only if enabled)
-    if (this.options.features.dueDate) {
+    if (this.options.features.schedule) {
       const scheduleBtn = document.createElement("button");
       scheduleBtn.className = "hover-button schedule-button";
       scheduleBtn.setAttribute("data-type", "schedule");
@@ -1273,7 +1333,7 @@ class Outline {
     });
     buttonsContainer.appendChild(editBtn);
 
-    // Open button (for navigating to solo view) - always enabled
+    // Open button (for opening item) - always enabled
     const openBtn = document.createElement("button");
     openBtn.className = "hover-button open-button";
     openBtn.setAttribute("data-type", "open");
@@ -1281,10 +1341,10 @@ class Outline {
     openBtn.tabIndex = -1; // Remove from tab navigation
     openBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.navigateToSoloView(li);
+      this.openItem(li);
     });
     buttonsContainer.appendChild(openBtn);
-    
+
     // Reorder buttons: open, status, edit, remove, then others
     const desiredOrder = [
       '.open-button',
@@ -1292,7 +1352,8 @@ class Outline {
       '.edit-button',
       '.remove-button',
       '.priority-button',
-      '.onhold-button',
+      '.blocked-button',
+      '.due-button',
       '.schedule-button',
       '.assign-button',
       '.tags-button',
@@ -1304,7 +1365,7 @@ class Outline {
         buttonsContainer.appendChild(btn);
       }
     });
-    
+
     // Insert after the child-count if it exists, otherwise after the text span
     const childCount = li.querySelector(".child-count");
     if (childCount) {
@@ -1317,10 +1378,10 @@ class Outline {
         li.appendChild(buttonsContainer);
       }
     }
-    
+
     // Add hover delay functionality
     this.addHoverDelayHandlers(li, buttonsContainer);
-    
+
     // Update button text based on current data
     this.updateHoverButtons(li);
   }
@@ -1328,13 +1389,13 @@ class Outline {
   addHoverDelayHandlers(li, buttonsContainer) {
     let hoverTimeout;
     const delay = 600; // 600ms delay before showing buttons
-    
+
     li.addEventListener('mouseenter', () => {
       // Clear any existing timeout
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
       }
-      
+
       // Set timeout to show all buttons after delay
       hoverTimeout = setTimeout(() => {
         // Show all buttons on hover
@@ -1345,14 +1406,14 @@ class Outline {
         buttonsContainer.style.display = 'inline-flex';
       }, delay);
     });
-    
+
     li.addEventListener('mouseleave', () => {
       // Clear timeout and hide buttons without data immediately
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
         hoverTimeout = null;
       }
-      
+
       // If a popup is active for this item, keep all buttons visible
       if (li.classList.contains('popup-active')) {
         const allButtons = buttonsContainer.querySelectorAll('.hover-button');
@@ -1368,7 +1429,7 @@ class Outline {
       buttonsWithoutData.forEach(btn => {
         btn.style.display = 'none';
       });
-      
+
       // Show the container if there are still visible buttons (with data)
       const buttonsWithData = buttonsContainer.querySelectorAll('.hover-button.has-data');
       if (buttonsWithData.length > 0 || li.classList.contains('popup-active')) {
@@ -1382,13 +1443,13 @@ class Outline {
   updateHoverButtonsVisibility(li) {
     const buttonsContainer = li.querySelector('.outline-hover-buttons');
     if (!buttonsContainer) return;
-    
+
     // Always show buttons with data
     const buttonsWithData = buttonsContainer.querySelectorAll('.hover-button.has-data');
     buttonsWithData.forEach(btn => {
       btn.style.display = 'inline';
     });
-    
+
     // Hide buttons without data (unless popup is active)
     const buttonsWithoutData = buttonsContainer.querySelectorAll('.hover-button:not(.has-data)');
     buttonsWithoutData.forEach(btn => {
@@ -1398,7 +1459,7 @@ class Outline {
         btn.style.display = 'inline';
       }
     });
-    
+
     // Show the container if there are visible buttons
     const visibleButtons = buttonsContainer.querySelectorAll('.hover-button[style*="inline"]');
     if (visibleButtons.length > 0 || li.classList.contains('popup-active')) {
@@ -1410,7 +1471,8 @@ class Outline {
 
   updateHoverButtons(li) {
     const priorityBtn = li.querySelector(".priority-button");
-    const onHoldBtn = li.querySelector(".onhold-button");
+    const blockedBtn = li.querySelector(".blocked-button");
+    const dueBtn = li.querySelector(".due-button");
     const scheduleBtn = li.querySelector(".schedule-button");
     const assignBtn = li.querySelector(".assign-button");
     const tagsBtn = li.querySelector(".tags-button");
@@ -1419,12 +1481,12 @@ class Outline {
     const stateBtn = li.querySelector(".state-button");
     const editBtn = li.querySelector(".edit-button");
     const openBtn = li.querySelector(".open-button");
-    
+
     // Only require the always-enabled buttons to exist
     if (!stateBtn || !editBtn || !openBtn) return;
-    
+
     let hasAnyData = false;
-    
+
     // Update priority button (if enabled)
     if (priorityBtn) {
       const isPriority = li.classList.contains("priority");
@@ -1437,33 +1499,46 @@ class Outline {
         priorityBtn.classList.remove("has-data");
       }
     }
-    
-    // Update on hold button (if enabled)
-    if (onHoldBtn) {
-      const isOnHold = li.classList.contains("on-hold");
-      if (isOnHold) {
-        onHoldBtn.textContent = "on hold";
-        onHoldBtn.classList.add("has-data");
+
+    // Update blocked button (if enabled)
+    if (blockedBtn) {
+      const isBlocked = li.classList.contains("blocked");
+      if (isBlocked) {
+        blockedBtn.textContent = "blocked";
+        blockedBtn.classList.add("has-data");
         hasAnyData = true;
       } else {
-        onHoldBtn.innerHTML = "on <u>h</u>old";
-        onHoldBtn.classList.remove("has-data");
+        blockedBtn.innerHTML = "blo<u>c</u>ked";
+        blockedBtn.classList.remove("has-data");
       }
     }
-    
+
+    // Update due button (if enabled)
+    if (dueBtn) {
+      const dueSpan = li.querySelector(".outline-due");
+      if (dueSpan && dueSpan.textContent.trim()) {
+        dueBtn.textContent = `due ${dueSpan.textContent.trim()}`;
+        dueBtn.classList.add("has-data");
+        hasAnyData = true;
+      } else {
+        dueBtn.innerHTML = "<u>d</u>ue";
+        dueBtn.classList.remove("has-data");
+      }
+    }
+
     // Update schedule button (if enabled)
     if (scheduleBtn) {
       const scheduleSpan = li.querySelector(".outline-schedule");
       if (scheduleSpan && scheduleSpan.textContent.trim()) {
-        scheduleBtn.textContent = scheduleSpan.textContent.trim();
+        scheduleBtn.textContent = `on ${scheduleSpan.textContent.trim()}`;
         scheduleBtn.classList.add("has-data");
         hasAnyData = true;
       } else {
-        scheduleBtn.innerHTML = "<u>d</u>ue on";
+        scheduleBtn.innerHTML = "s<u>c</u>hedule";
         scheduleBtn.classList.remove("has-data");
       }
     }
-    
+
     // Update assign button (if enabled)
     if (assignBtn) {
       const assignSpan = li.querySelector(".outline-assign");
@@ -1476,7 +1551,7 @@ class Outline {
         assignBtn.classList.remove("has-data");
       }
     }
-    
+
     // Update tags button (if enabled)
     if (tagsBtn) {
       const tagsSpan = li.querySelector(".outline-tags");
@@ -1510,8 +1585,8 @@ class Outline {
       removeBtn.innerHTML = hasChildren ? "<u>r</u>emove…" : "<u>r</u>emove";
       removeBtn.classList.remove("has-data");
     }
-    
-    // State button always shows "status" 
+
+    // State button always shows "status"
     stateBtn.innerHTML = "<u>s</u>tatus";
     stateBtn.classList.remove("has-data");
 
@@ -1522,17 +1597,17 @@ class Outline {
     // Open button always shows "open" and doesn't have data states
     openBtn.innerHTML = "<u>o</u>pen";
     openBtn.classList.remove("has-data"); // Open button is never in "has-data" state
-    
+
     // Add/remove has-data class on the li element
     if (hasAnyData) {
       li.classList.add("has-data");
     } else {
       li.classList.remove("has-data");
     }
-    
+
     // Update hover buttons visibility based on has-data state
     this.updateHoverButtonsVisibility(li);
-    
+
     // Reorder buttons: set values first, then unset values
     this.reorderHoverButtons(li);
   }
@@ -1551,11 +1626,12 @@ class Outline {
       edit: 2,
       remove: 3,
       priority: 4,
-      onhold: 5,
+      blocked: 5,
       schedule: 6,
-      assign: 7,
-      tags: 8,
-      notes: 9
+      due: 7,
+      assign: 8,
+      tags: 9,
+      notes: 10
     };
 
     const decorated = buttons.map((btn, index) => {
@@ -1585,7 +1661,7 @@ class Outline {
       }
       popup.remove();
     });
-    
+
     // Also check within the list container specifically
     this.el.querySelectorAll('.outline-popup').forEach(popup => {
       // Clean up event listener if it exists
@@ -1594,26 +1670,26 @@ class Outline {
       }
       popup.remove();
     });
-    
+
     // Remove popup-active class from all todo items and update hover buttons visibility
     this.el.querySelectorAll('li.popup-active').forEach(li => {
       li.classList.remove('popup-active');
       this.updateHoverButtonsVisibility(li);
     });
-    
+
     if (focusElement) {
       focusElement.focus();
     }
   }
 
   positionPopup(popup, button) {
-    // Append to the todo list container, not document.body
-    this.el.style.position = 'relative'; // Ensure container is positioned
+    // Ensure container has relative positioning for absolute popup positioning
+    this.el.style.position = 'relative';
     this.el.appendChild(popup);
-    
+
     // Get button position relative to the list container
     const containerRect = this.el.getBoundingClientRect();
-    
+
     // Check if button is visible and has proper dimensions
     const buttonRect = button.getBoundingClientRect();
     if (buttonRect.width === 0 || buttonRect.height === 0) {
@@ -1629,54 +1705,116 @@ class Outline {
         return;
       }
     }
-    
+
     const left = buttonRect.left - containerRect.left;
     const top = buttonRect.bottom - containerRect.top + 5;
-    
-    popup.style.left = `${left}px`;
+
+    // Apply center-oriented positioning for all popups
+    const positionedLeft = this.calculateCenterOrientedPosition(popup, left, containerRect.width);
+    popup.style.left = `${positionedLeft}px`;
     popup.style.top = `${top}px`;
   }
 
+  /**
+   * Calculate the optimal left position for a popup to open towards the center
+   * and minimize the chance of extending outside the screen
+   */
+  calculateCenterOrientedPosition(popup, buttonLeft, containerWidth) {
+    // Get popup width - use different widths for different popup types
+    let popupWidth;
+    if (popup.classList.contains('notes-popup')) {
+      popupWidth = 200; // Match the min-width from CSS
+    } else if (popup.classList.contains('dropdown-popup')) {
+      popupWidth = 150; // Typical width for dropdown popups
+    } else if (popup.classList.contains('date-popup')) {
+      popupWidth = 200; // Width for date popup
+    } else {
+      popupWidth = 200; // Default width
+    }
+
+    const centerX = containerWidth / 2;
+
+    // If the button is on the right side of the screen, open popup to the left
+    if (buttonLeft > centerX) {
+      // Position popup to the left of the button, ensuring it doesn't go off-screen
+      const popupLeft = Math.max(0, buttonLeft - popupWidth);
+      return popupLeft;
+    } else {
+      // Button is on the left side, open popup to the right (default behavior)
+      const rightEdge = buttonLeft + popupWidth;
+      if (rightEdge > containerWidth) {
+        // Adjust left position to keep popup within container
+        const adjustedLeft = Math.max(0, containerWidth - popupWidth - 10);
+        return adjustedLeft;
+      } else {
+        return buttonLeft;
+      }
+    }
+  }
+
+  showDuePopup(li, button) {
+    this.showDateTimePopup(li, button, 'due');
+  }
+
   showSchedulePopup(li, button) {
+    this.showDateTimePopup(li, button, 'schedule');
+  }
+
+  showDateTimePopup(li, button, type) {
     this.closeAllPopups();
-    
+
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup date-popup';
-    
+
+    // Date input container with icon
+    const dateContainer = document.createElement('div');
+    dateContainer.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
+
     // Date input
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
     dateInput.className = 'dropdown-input';
-    
-    // Get current date if set, otherwise use today
-    const existingScheduleSpan = li.querySelector('.outline-schedule');
+    dateInput.style.flex = '1';
+
+    // Get current date/time if set, otherwise use today
+    const existingSpan = li.querySelector(`.outline-${type}`);
     let initialDate = new Date();
-    
-    if (existingScheduleSpan && existingScheduleSpan.textContent.trim()) {
-      // Try to parse existing date (format: " Jan 5")
-      const dateText = existingScheduleSpan.textContent.trim();
-      console.log('Parsing date text:', dateText); // Debug
-      
+    let hasTime = false;
+
+    if (existingSpan && existingSpan.textContent.trim()) {
+      const dateText = existingSpan.textContent.trim();
+      console.log(`Parsing ${type} date text:`, dateText); // Debug
+
+      // Check if the text includes time (format: "Jan 5 14:30" or "Jan 5, 14:30")
+      hasTime = /\d{1,2}:\d{2}/.test(dateText);
+
       const currentYear = new Date().getFullYear();
-      
-      // Handle different date formats
       let parsedDate;
-      if (dateText.includes(' ')) {
-        // Format: "Jan 5" or " Jan 5"
-        const dateWithYear = `${dateText} ${currentYear}`;
-        console.log('Trying to parse:', dateWithYear); // Debug
+
+      if (hasTime) {
+        // Try to parse full date with time
+        // Handle formats like "Jan 5 14:30" or "Jan 5, 14:30"
+        const dateWithYear = dateText.includes(currentYear.toString()) ?
+          dateText :
+          dateText.replace(/(\w{3}\s+\d{1,2}),?\s+/, `$1 ${currentYear} `);
         parsedDate = new Date(dateWithYear);
-        
-        // Fix timezone issue by creating date in local timezone
+
+        if (!isNaN(parsedDate.getTime())) {
+          initialDate = parsedDate;
+        }
+      } else if (dateText.includes(' ')) {
+        // Format: "Jan 5" - date only
+        const dateWithYear = `${dateText} ${currentYear}`;
+        parsedDate = new Date(dateWithYear);
+
         if (!isNaN(parsedDate.getTime())) {
           const month = parsedDate.getMonth();
           const day = parsedDate.getDate();
           initialDate = new Date(currentYear, month, day);
-          console.log('Created local date:', initialDate); // Debug
         }
       } else {
         // Try direct parsing
@@ -1685,44 +1823,121 @@ class Outline {
           initialDate = parsedDate;
         }
       }
-      
-      console.log('Parsed date:', parsedDate, 'Valid:', !isNaN(parsedDate.getTime())); // Debug
+
+      console.log(`Parsed ${type} date:`, parsedDate, 'Valid:', !isNaN(parsedDate.getTime()), 'Has time:', hasTime);
     }
-    
-    // Use toLocaleDateString to avoid timezone issues
-    const year = initialDate.getFullYear();
-    const month = String(initialDate.getMonth() + 1).padStart(2, '0');
-    const day = String(initialDate.getDate()).padStart(2, '0');
-    dateInput.value = `${year}-${month}-${day}`;
-    console.log('Final date input value:', dateInput.value); // Debug
-    
-    popup.appendChild(dateInput);
-    
-    // Add button container for better layout
+
+    // Set the initial input type and value
+    if (hasTime) {
+      dateInput.type = 'datetime-local';
+      // Format for datetime-local: YYYY-MM-DDTHH:MM
+      const year = initialDate.getFullYear();
+      const month = String(initialDate.getMonth() + 1).padStart(2, '0');
+      const day = String(initialDate.getDate()).padStart(2, '0');
+      const hours = String(initialDate.getHours()).padStart(2, '0');
+      const minutes = String(initialDate.getMinutes()).padStart(2, '0');
+      dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    } else {
+      // Set the date input value
+      const year = initialDate.getFullYear();
+      const month = String(initialDate.getMonth() + 1).padStart(2, '0');
+      const day = String(initialDate.getDate()).padStart(2, '0');
+      dateInput.value = `${year}-${month}-${day}`;
+    }
+
+    // Time toggle icon button
+    const timeIcon = document.createElement('button');
+    timeIcon.type = 'button';
+    timeIcon.className = 'hover-button time-icon';
+    timeIcon.textContent = hasTime ? 'Only date' : 'Add time';
+    timeIcon.title = hasTime ? 'Remove time (date only)' : 'Add time';
+    timeIcon.style.padding = '0.3rem 0.6rem';
+
+    // Prevent click events from bubbling up from the time icon
+    timeIcon.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (dateInput.type === 'date') {
+        // Switch to datetime-local
+        const currentDate = dateInput.value;
+        dateInput.type = 'datetime-local';
+        if (currentDate) {
+          // Default to 09:00
+          dateInput.value = `${currentDate}T09:00`;
+        }
+        timeIcon.textContent = 'Only date';
+        timeIcon.title = 'Remove time (date only)';
+
+        // Re-add click prevention for the new input type
+        dateInput.removeEventListener('click', dateInput._clickHandler);
+        dateInput._clickHandler = (e) => e.stopPropagation();
+        dateInput.addEventListener('click', dateInput._clickHandler);
+      } else {
+        // Switch back to date only
+        const currentDateTime = dateInput.value;
+        dateInput.type = 'date';
+        if (currentDateTime) {
+          dateInput.value = currentDateTime.split('T')[0];
+        }
+        timeIcon.textContent = 'Add time';
+        timeIcon.title = 'Add time';
+
+        // Re-add click prevention for the new input type
+        dateInput.removeEventListener('click', dateInput._clickHandler);
+        dateInput._clickHandler = (e) => e.stopPropagation();
+        dateInput.addEventListener('click', dateInput._clickHandler);
+      }
+    });
+
+    // Prevent click events from bubbling up from the date input
+    dateInput._clickHandler = (e) => e.stopPropagation();
+    dateInput.addEventListener('click', dateInput._clickHandler);
+
+    dateContainer.appendChild(dateInput);
+    dateContainer.appendChild(timeIcon);
+    popup.appendChild(dateContainer);
+
+    // Button container
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
     buttonContainer.style.gap = '0.5rem';
     buttonContainer.style.marginTop = '0.5rem';
-    
-    // Add confirm button
+
+    // Confirm button
     const confirmButton = document.createElement('button');
-    confirmButton.textContent = 'Set Date';
+    confirmButton.textContent = 'Set';
     confirmButton.className = 'hover-button';
     confirmButton.style.padding = '0.3rem 0.6rem';
     confirmButton.style.flex = '1';
-    confirmButton.type = 'button'; // Ensure it's a button
-    
-    // Handle confirm button click and keyboard
+    confirmButton.type = 'button';
+
+    // Handle confirm button click
     const handleConfirm = (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (dateInput.value) {
-        const selectedDate = new Date(dateInput.value + 'T00:00:00');
-        this.setScheduleDate(li, selectedDate);
+        let selectedDate;
+
+        if (dateInput.type === 'datetime-local') {
+          // Parse datetime-local format: YYYY-MM-DDTHH:MM
+          selectedDate = new Date(dateInput.value);
+          // Mark that time was explicitly set
+          selectedDate._explicitTime = true;
+        } else {
+          // Parse date format: YYYY-MM-DD
+          selectedDate = new Date(dateInput.value + 'T00:00:00');
+        }
+
+        if (type === 'due') {
+          this.setDueDate(li, selectedDate);
+        } else {
+          this.setScheduleDate(li, selectedDate);
+        }
         this.closeAllPopups();
       }
     };
-    
+
     confirmButton.addEventListener('click', handleConfirm);
     confirmButton.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -1730,23 +1945,26 @@ class Outline {
         handleConfirm(e);
       }
     });
-    
-    // Add clear button
+
+    // Clear button
     const clearButton = document.createElement('button');
     clearButton.textContent = 'Clear';
-    clearButton.className = 'hover-button';
+    clearButton.className = 'hover-button clear-date';
     clearButton.style.padding = '0.3rem 0.6rem';
     clearButton.style.flex = '1';
-    clearButton.type = 'button'; // Ensure it's a button
-    
-    // Handle clear button click and keyboard
+    clearButton.type = 'button';
+
     const handleClear = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.clearScheduleDate(li);
+      if (type === 'due') {
+        this.clearDueDate(li);
+      } else {
+        this.clearScheduleDate(li);
+      }
       this.closeAllPopups();
     };
-    
+
     clearButton.addEventListener('click', handleClear);
     clearButton.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -1754,54 +1972,46 @@ class Outline {
         handleClear(e);
       }
     });
-    
+
     buttonContainer.appendChild(confirmButton);
     buttonContainer.appendChild(clearButton);
-    popup.appendChild(buttonContainer);    
-    
+    popup.appendChild(buttonContainer);
+
+    // Keyboard handling
     dateInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeAllPopups(li);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (dateInput.value) {
-          const selectedDate = new Date(dateInput.value + 'T00:00:00');
-          this.setScheduleDate(li, selectedDate);
-          this.closeAllPopups();
-        }
-      } else if (e.key === 'Tab') {
-        // Allow normal tab navigation to buttons
-        // Don't prevent default - let it move to next focusable element
+        handleConfirm(e);
       }
     });
-    
-    // Position popup relative to the list container
+
+    // Position popup and setup
     this.positionPopup(popup, button);
-    
-    // Focus the input
     setTimeout(() => dateInput.focus(), 0);
-    
-    // Store reference for cleanup
     this.currentPopup = popup;
-    
-    // Close on outside click - simplified approach
+
+    // Outside click handling
     setTimeout(() => {
       const handleOutsideClick = (e) => {
-        // Don't close if clicking inside the popup, on date picker elements, or within the web component
-        if (popup.contains(e.target) || e.target.matches('input[type="date"]') || e.target.closest('outline-list')) {
+        // Don't close if clicking inside the popup, on any date/datetime input, or within the web component
+        const isInsidePopup = popup.contains(e.target);
+        const isDateInput = e.target.matches('input[type="date"]') || e.target.matches('input[type="datetime-local"]');
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+
+        if (isInsidePopup || isDateInput || isInOutlineList || isPopupElement) {
           return;
         }
-        
-        // Close popup and remove listener
+
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
-      
+
       document.addEventListener('click', handleOutsideClick);
-      
-      // Store reference to remove listener when popup closes
       popup._outsideClickHandler = handleOutsideClick;
-    }, 100); // Increased timeout to ensure date picker is ready
+    }, 100);
   }
 
   setScheduleDate(li, date) {
@@ -1822,10 +2032,27 @@ class Outline {
       }
     }
 
-    const timestamp = date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    });
+    // Format with time if time was explicitly set (not default midnight)
+    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) ||
+                   (date._explicitTime === true);
+    let timestamp;
+
+    if (hasTime) {
+      timestamp = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      }) + ' ' + date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } else {
+      timestamp = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
     scheduleSpan.textContent = ` ${timestamp}`;
 
     // Update the hover button to show the data
@@ -1834,7 +2061,7 @@ class Outline {
     // Restore focus to the todo item
     li.focus();
 
-    this.emit("outline:due", {
+    this.emit("outline:schedule", {
       id: li.dataset.id,
       text: textSpan.textContent,
       timestamp: date.toISOString()
@@ -1857,6 +2084,83 @@ class Outline {
     // Restore focus to the todo item
     li.focus();
 
+    this.emit("outline:schedule", {
+      id: li.dataset.id,
+      text: textSpan.textContent,
+      timestamp: null
+    });
+  }
+
+  setDueDate(li, date) {
+    const textSpan = li.querySelector(".outline-text");
+    if (!textSpan) return;
+
+    let dueSpan = li.querySelector(".outline-due");
+    if (!dueSpan) {
+      dueSpan = document.createElement("span");
+      dueSpan.className = "outline-due";
+      dueSpan.style.display = "none"; // Hide the span, show in button
+      // Insert after buttons container if it exists, otherwise after text
+      const buttonsContainer = li.querySelector(".outline-hover-buttons");
+      if (buttonsContainer) {
+        buttonsContainer.after(dueSpan);
+      } else {
+        textSpan.after(dueSpan);
+      }
+    }
+
+    // Format with time if time was explicitly set (not default midnight)
+    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) ||
+                   (date._explicitTime === true);
+    let timestamp;
+
+    if (hasTime) {
+      timestamp = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      }) + ' ' + date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } else {
+      timestamp = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    dueSpan.textContent = ` ${timestamp}`;
+
+    // Update the hover button to show the data
+    this.updateHoverButtons(li);
+
+    // Restore focus to the todo item
+    li.focus();
+
+    this.emit("outline:due", {
+      id: li.dataset.id,
+      text: textSpan.textContent,
+      timestamp: date.toISOString()
+    });
+  }
+
+  clearDueDate(li) {
+    const textSpan = li.querySelector(".outline-text");
+    if (!textSpan) return;
+
+    // Remove the due span
+    const dueSpan = li.querySelector(".outline-due");
+    if (dueSpan) {
+      dueSpan.remove();
+    }
+
+    // Update the hover button to show the data
+    this.updateHoverButtons(li);
+
+    // Restore focus to the todo item
+    li.focus();
+
     this.emit("outline:due", {
       id: li.dataset.id,
       text: textSpan.textContent,
@@ -1866,40 +2170,40 @@ class Outline {
 
   showAssignPopup(li, button) {
     this.closeAllPopups();
-    
+
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup';
-    
+
     // Get current assignee
     const existingAssignSpan = li.querySelector('.outline-assign');
-    const currentAssignee = existingAssignSpan ? 
+    const currentAssignee = existingAssignSpan ?
       existingAssignSpan.textContent.trim().replace(/^@/, '') : null;
-    
+
     // Add "None" option to remove assignment
     const noneItem = document.createElement('div');
     noneItem.className = 'dropdown-item';
     noneItem.textContent = 'None';
     noneItem.setAttribute('tabindex', '0');
     if (!currentAssignee) noneItem.classList.add('selected');
-    
+
     noneItem.addEventListener('click', () => {
       this.removeAssignee(li);
       this.closeAllPopups();
     });
-    
+
     noneItem.addEventListener('keydown', (e) => {
       this.handleDropdownKeydown(e, noneItem, () => {
         this.removeAssignee(li);
         this.closeAllPopups();
       }, li);
     });
-    
+
     popup.appendChild(noneItem);
-    
+
     // Assignee options from configuration
     this.options.assignees.forEach(assignee => {
       const item = document.createElement('div');
@@ -1907,32 +2211,32 @@ class Outline {
       item.textContent = assignee;
       item.setAttribute('tabindex', '0');
       if (currentAssignee === assignee) item.classList.add('selected');
-      
+
       item.addEventListener('click', () => {
         this.setAssignee(li, assignee);
         this.closeAllPopups();
       });
-      
+
       item.addEventListener('keydown', (e) => {
         this.handleDropdownKeydown(e, item, () => {
           this.setAssignee(li, assignee);
           this.closeAllPopups();
         }, li);
       });
-      
+
       popup.appendChild(item);
     });
-    
+
     // Position popup relative to the list container
     this.positionPopup(popup, button);
-    
+
     // Focus first item or current selection
     setTimeout(() => {
-      const selectedItem = popup.querySelector('.dropdown-item.selected') || 
+      const selectedItem = popup.querySelector('.dropdown-item.selected') ||
                           popup.querySelector('.dropdown-item');
       if (selectedItem) selectedItem.focus();
     }, 0);
-    
+
     // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', (e) => {
@@ -1965,7 +2269,7 @@ class Outline {
     if (assignSpan) {
       assignSpan.remove();
     }
-    
+
     // Update hover buttons
     this.updateHoverButtons(li);
 
@@ -2014,33 +2318,33 @@ class Outline {
 
   showTagsPopup(li, button) {
     this.closeAllPopups();
-    
+
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup tags-popup';
-    
+
     // Get current tags
     const existingTagsSpan = li.querySelector('.outline-tags');
-    const currentTags = existingTagsSpan ? 
+    const currentTags = existingTagsSpan ?
       existingTagsSpan.textContent.trim().split(/\s+/).map(tag => tag.replace(/^#/, '')) : [];
-    
+
     // Input for adding new tags
     const input = document.createElement('input');
     input.className = 'dropdown-input';
     input.placeholder = 'Add new tag...';
     popup.appendChild(input);
-    
+
     // Tag options from configuration + any existing tags not in config
     const allTags = [...new Set([...this.options.tags, ...currentTags])];
-    
+
     allTags.forEach(tag => {
       const item = document.createElement('div');
       item.className = 'dropdown-item tag-item';
       item.setAttribute('tabindex', '0');
-      
+
       // Checkbox for multiselect
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -2049,13 +2353,13 @@ class Outline {
         e.stopPropagation();
         this.toggleTag(li, tag, checkbox.checked);
       });
-      
+
       const label = document.createElement('label');
       label.textContent = tag;
       label.prepend(checkbox);
-      
+
       item.appendChild(label);
-      
+
       // Handle click on item (toggle checkbox)
       item.addEventListener('click', (e) => {
         // Prevent the default checkbox behavior and handle it ourselves
@@ -2071,7 +2375,7 @@ class Outline {
           this.toggleTag(li, tag, checkbox.checked);
         }
       });
-      
+
       // Handle keyboard navigation
       item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -2094,10 +2398,10 @@ class Outline {
           this.closeAllPopups(li);
         }
       });
-      
+
       popup.appendChild(item);
     });
-    
+
     // Handle input for new tags
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -2117,16 +2421,16 @@ class Outline {
         this.closeAllPopups(li);
       }
     });
-    
+
     // Position popup relative to the list container
     this.positionPopup(popup, button);
-    
+
     // Focus input
     setTimeout(() => input.focus(), 0);
-    
+
     // Store reference for cleanup
     this.currentPopup = popup;
-    
+
     // Close on outside click - simplified approach
     setTimeout(() => {
       const handleOutsideClick = (e) => {
@@ -2134,14 +2438,14 @@ class Outline {
         if (popup.contains(e.target) || e.target.closest('outline-list')) {
           return;
         }
-        
+
         // Close popup and remove listener
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
-      
+
       document.addEventListener('click', handleOutsideClick);
-      
+
       // Store reference to remove listener when popup closes
       popup._outsideClickHandler = handleOutsideClick;
     }, 100); // Increased timeout to ensure popup is ready
@@ -2149,32 +2453,36 @@ class Outline {
 
   showNotesPopup(li, button) {
     this.closeAllPopups();
-    
+
     // Keep metadata visible
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup date-popup notes-popup';
-    
+
     const textarea = document.createElement('textarea');
-    textarea.className = 'dropdown-input';
+    textarea.className = 'dropdown-input notes-textarea';
     textarea.placeholder = 'Add notes…';
     textarea.style.padding = '0.5rem';
-    textarea.rows = 4;
-    
+    textarea.rows = 8;
+    textarea.style.minHeight = '200px';
+    textarea.style.resize = 'vertical';
+    textarea.style.width = '200px';
+
     // Prefill from existing
     const existingNotesSpan = li.querySelector('.outline-notes');
     if (existingNotesSpan && existingNotesSpan.textContent) {
       textarea.value = existingNotesSpan.textContent.trim();
     }
     popup.appendChild(textarea);
-    
+
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
     buttonContainer.style.gap = '0.5rem';
     buttonContainer.style.marginTop = '0.5rem';
-    
+    buttonContainer.style.justifyContent = 'flex-end';
+
     const saveBtn = document.createElement('button');
     saveBtn.textContent = 'Save';
     saveBtn.className = 'hover-button';
@@ -2182,7 +2490,7 @@ class Outline {
     saveBtn.style.flex = '1';
     saveBtn.type = 'button';
     saveBtn.setAttribute('tabindex', '0');
-    
+
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.className = 'hover-button';
@@ -2190,7 +2498,7 @@ class Outline {
     cancelBtn.style.flex = '1';
     cancelBtn.type = 'button';
     cancelBtn.setAttribute('tabindex', '0');
-    
+
     const handleSave = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -2204,11 +2512,11 @@ class Outline {
     };
     saveBtn.addEventListener('click', handleSave);
     cancelBtn.addEventListener('click', handleCancel);
-    
+
     buttonContainer.appendChild(saveBtn);
     buttonContainer.appendChild(cancelBtn);
     popup.appendChild(buttonContainer);
-    
+
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeAllPopups(li);
@@ -2231,11 +2539,11 @@ class Outline {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCancel(e); }
       if (e.key === 'Escape') { this.closeAllPopups(li); }
     });
-    
+
     this.positionPopup(popup, button);
     setTimeout(() => textarea.focus(), 0);
     this.currentPopup = popup;
-    
+
     setTimeout(() => {
       const handleOutsideClick = (e) => {
         if (popup.contains(e.target) || e.target.closest('outline-list')) return;
@@ -2279,34 +2587,34 @@ class Outline {
     this.closeAllPopups();
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup date-popup remove-popup';
-    
+
     const hasChildren = !!li.querySelector('ul > li');
     const heading = document.createElement('div');
     heading.textContent = hasChildren ? 'Remove this and all nested items?' : 'Remove?';
     popup.appendChild(heading);
-    
+
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
     buttonContainer.style.gap = '0.5rem';
     buttonContainer.style.marginTop = '0.5rem';
-    
+
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = 'Remove';
     confirmBtn.className = 'hover-button';
     confirmBtn.style.padding = '0.3rem 0.6rem';
     confirmBtn.style.flex = '1';
     confirmBtn.type = 'button';
-    
+
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.className = 'hover-button';
     cancelBtn.style.padding = '0.3rem 0.6rem';
     cancelBtn.style.flex = '1';
     cancelBtn.type = 'button';
-    
+
     const handleRemove = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -2320,11 +2628,11 @@ class Outline {
     };
     confirmBtn.addEventListener('click', handleRemove);
     cancelBtn.addEventListener('click', handleCancel);
-    
+
     buttonContainer.appendChild(confirmBtn);
     buttonContainer.appendChild(cancelBtn);
     popup.appendChild(buttonContainer);
-    
+
     confirmBtn.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { this.closeAllPopups(li); }
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRemove(e); }
@@ -2335,11 +2643,11 @@ class Outline {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCancel(e); }
       // Allow natural Tab/Shift+Tab to move focus
     });
-    
+
     this.positionPopup(popup, button);
     setTimeout(() => confirmBtn.focus(), 0);
     this.currentPopup = popup;
-    
+
     setTimeout(() => {
       const handleOutsideClick = (e) => {
         if (popup.contains(e.target) || e.target.closest('outline-list')) return;
@@ -2357,6 +2665,10 @@ class Outline {
     const detailText = textSpan ? textSpan.textContent : '';
     const parentLi = li.parentNode.closest('li');
     const parentUl = li.parentNode;
+
+    // Find the next element to focus on before removing the current one
+    const nextElement = this.findNextFocusableElement(li);
+
     li.remove();
     if (parentUl && parentUl.tagName === 'UL') {
       // If parent LI exists, update child count and possibly remove empty ul
@@ -2369,20 +2681,58 @@ class Outline {
         }
       }
     }
+
+    // Set focus on the next available element
+    if (nextElement) {
+      nextElement.focus();
+    }
+
     this.emit('outline:remove', { id, text: detailText });
+  }
+
+  findNextFocusableElement(li) {
+    // Get all siblings of the current element
+    const siblings = this.getSiblings(li);
+    const currentIndex = siblings.indexOf(li);
+
+    // Try to find the next sibling
+    if (currentIndex < siblings.length - 1) {
+      return siblings[currentIndex + 1];
+    }
+
+    // If no next sibling, try the previous sibling
+    if (currentIndex > 0) {
+      return siblings[currentIndex - 1];
+    }
+
+    // If no siblings, try to find the parent
+    const parentLi = li.parentNode.closest('li');
+    if (parentLi) {
+      return parentLi;
+    }
+
+    // If no parent, try to find any available element in the list
+    const allItems = this.getItems();
+    if (allItems.length > 1) {
+      // Find the first item that's not the one being removed
+      return allItems.find(item => item !== li);
+    }
+
+    // No other elements available
+    return null;
   }
 
   toggleTag(li, tag, isChecked) {
     const existingTagsSpan = li.querySelector('.outline-tags');
-    let currentTags = existingTagsSpan ? 
+    let currentTags = existingTagsSpan ?
       existingTagsSpan.textContent.trim().split(/\s+/).map(t => t.replace(/^#/, '')) : [];
-    
+
     if (isChecked && !currentTags.includes(tag)) {
       currentTags.push(tag);
     } else if (!isChecked && currentTags.includes(tag)) {
       currentTags = currentTags.filter(t => t !== tag);
     }
-    
+
     // Update tags without focusing the todo item (to keep popup focus)
     this.updateTagsWithoutFocus(li, currentTags);
   }
@@ -2420,9 +2770,9 @@ class Outline {
 
   addNewTag(li, newTag) {
     const existingTagsSpan = li.querySelector('.outline-tags');
-    let currentTags = existingTagsSpan ? 
+    let currentTags = existingTagsSpan ?
       existingTagsSpan.textContent.trim().split(/\s+/).map(t => t.replace(/^#/, '')) : [];
-    
+
     if (!currentTags.includes(newTag)) {
       currentTags.push(newTag);
       this.updateTagsWithoutFocus(li, currentTags);
@@ -2431,24 +2781,36 @@ class Outline {
 
   showStatusPopup(li, button) {
     this.closeAllPopups();
-    
+
     // Add popup-active class to keep metadata visible
     li.classList.add('popup-active');
     this.updateHoverButtonsVisibility(li);
-    
+
     const popup = document.createElement('div');
     popup.className = 'outline-popup dropdown-popup';
-    
+
+    // Get current status to determine which option should be selected
+    const currentLabel = li.querySelector('.outline-label');
+    let currentStatus = 'none';
+
+    if (currentLabel && currentLabel.style.display !== 'none') {
+      const currentText = currentLabel.textContent.trim();
+      const statusIndex = this.options.statusLabels.findIndex(status => status.label === currentText);
+      if (statusIndex >= 0) {
+        currentStatus = `status-${statusIndex}`;
+      }
+    }
+
     // Status options - use custom labels if provided
     const statusOptions = [];
-    
+
     // Always add "None" option first
     statusOptions.push({
       value: 'none',
       label: 'None',
       description: 'Convert to heading (no label)'
     });
-    
+
     // Add custom status labels
     this.options.statusLabels.forEach((status, index) => {
       statusOptions.push({
@@ -2457,20 +2819,25 @@ class Outline {
         description: `Mark as ${status.label.toLowerCase()}`
       });
     });
-    
+
     statusOptions.forEach((option, index) => {
       const item = document.createElement('div');
       item.className = 'dropdown-item';
       item.textContent = option.label;
       item.setAttribute('data-value', option.value);
       item.setAttribute('tabindex', '0');
-      
+
+      // Mark current status as selected
+      if (option.value === currentStatus) {
+        item.classList.add('selected');
+      }
+
       // Handle click
       item.addEventListener('click', () => {
         this.setTodoStatus(li, option.value);
         this.closeAllPopups();
       });
-      
+
       // Handle keyboard
       item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -2489,19 +2856,20 @@ class Outline {
           this.closeAllPopups(li);
         }
       });
-      
+
       popup.appendChild(item);
     });
-    
+
     // Position popup relative to the list container
     this.positionPopup(popup, button);
-    
-    // Focus first item
+
+    // Focus the currently selected item, or first item if none selected
     setTimeout(() => {
-      const firstItem = popup.querySelector('.dropdown-item');
-      if (firstItem) firstItem.focus();
+      const selectedItem = popup.querySelector('.dropdown-item.selected') ||
+                          popup.querySelector('.dropdown-item');
+      if (selectedItem) selectedItem.focus();
     }, 0);
-    
+
     // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', (e) => {
@@ -2518,7 +2886,7 @@ class Outline {
 
     // Remove existing state classes
     li.classList.remove("completed", "no-label");
-    
+
     // Apply new state
     if (status === 'none') {
       li.classList.add("no-label");
@@ -2530,7 +2898,7 @@ class Outline {
       if (customLabel) {
         label.style.display = "";
         label.textContent = customLabel.label;
-        
+
         // Check if this should be treated as "completed" (last status is typically completed)
         if (customLabel.isEndState) {
           li.classList.add("completed");
@@ -2603,7 +2971,7 @@ class Outline {
 
     // Check if already has priority
     const isPriority = li.classList.contains("priority");
-    
+
     if (isPriority) {
       // Remove priority
       li.classList.remove("priority");
@@ -2614,7 +2982,7 @@ class Outline {
     } else {
       // Add priority
       li.classList.add("priority");
-      
+
       // Create hidden priority span (like other metadata)
       let prioritySpan = li.querySelector(".outline-priority");
       if (!prioritySpan) {
@@ -2645,39 +3013,39 @@ class Outline {
     });
   }
 
-  toggleOnHold(li) {
+  toggleBlocked(li) {
     const textSpan = li.querySelector(".outline-text");
     if (!textSpan) return;
 
-    // Check if already on hold
-    const isOnHold = li.classList.contains("on-hold");
-    
-    if (isOnHold) {
-      // Remove on hold
-      li.classList.remove("on-hold");
-      const onHoldSpan = li.querySelector(".outline-onhold");
-      if (onHoldSpan) {
-        onHoldSpan.remove();
+    // Check if already blocked
+    const isBlocked = li.classList.contains("blocked");
+
+    if (isBlocked) {
+      // Remove blocked
+      li.classList.remove("blocked");
+      const blockedSpan = li.querySelector(".outline-blocked");
+      if (blockedSpan) {
+        blockedSpan.remove();
       }
     } else {
-      // Add on hold
-      li.classList.add("on-hold");
-      
-      // Create hidden on hold span (like other metadata)
-      let onHoldSpan = li.querySelector(".outline-onhold");
-      if (!onHoldSpan) {
-        onHoldSpan = document.createElement("span");
-        onHoldSpan.className = "outline-onhold";
-        onHoldSpan.style.display = "none"; // Hide the span, show in button
+      // Add blocked
+      li.classList.add("blocked");
+
+      // Create hidden blocked span (like other metadata)
+      let blockedSpan = li.querySelector(".outline-blocked");
+      if (!blockedSpan) {
+        blockedSpan = document.createElement("span");
+        blockedSpan.className = "outline-blocked";
+        blockedSpan.style.display = "none"; // Hide the span, show in button
         // Insert after buttons container if it exists, otherwise after text
         const buttonsContainer = li.querySelector(".outline-hover-buttons");
         if (buttonsContainer) {
-          buttonsContainer.after(onHoldSpan);
+          buttonsContainer.after(blockedSpan);
         } else {
-          textSpan.after(onHoldSpan);
+          textSpan.after(blockedSpan);
         }
       }
-      onHoldSpan.textContent = " on hold";
+      blockedSpan.textContent = " blocked";
     }
 
     // Update the hover button to show the data
@@ -2686,10 +3054,10 @@ class Outline {
     // Restore focus to the todo item
     li.focus();
 
-    this.emit("outline:onhold", {
+    this.emit("outline:blocked", {
       id: li.dataset.id,
       text: textSpan.textContent,
-      onHold: !isOnHold
+      blocked: !isBlocked
     });
   }
 
@@ -2707,32 +3075,32 @@ class OutlineElement extends HTMLElement {
   connectedCallback() {
     // Parse options from attributes
     const options = this.parseOptions();
-    
+
     // Create the list element
     const listEl = document.createElement('ul');
     listEl.className = 'outline-list';
-    
+
     // Parse todos from data attribute or children
     const todos = this.parseTodos();
-    
+
     // Render todos into the list
     this.renderTodos(listEl, todos, options);
-    
+
     // Add the list to shadow DOM
     this.shadowRoot.appendChild(listEl);
-    
+
     // Add CSS
     this.addStyles();
-    
+
     // Initialize the Outline
     this.todoList = new Outline(listEl, options);
-    
+
     // Forward events from shadow DOM to light DOM
     this.forwardEvents();
-    
+
     // Apply theme from parent document
     this.applyThemeFromParent();
-    
+
     // Listen for theme changes
     this.setupThemeListener();
   }
@@ -2745,7 +3113,7 @@ class OutlineElement extends HTMLElement {
         this.todoList.destroy();
       }
     }
-    
+
     // Clean up any add button
     const existingAddButton = this.shadowRoot.querySelector('.outline-add-button');
     if (existingAddButton) {
@@ -2755,7 +3123,7 @@ class OutlineElement extends HTMLElement {
 
   parseOptions() {
     const options = {};
-    
+
     // Parse options from data-* attributes
     const assignees = this.getAttribute('data-assignees');
     if (assignees) {
@@ -2765,7 +3133,7 @@ class OutlineElement extends HTMLElement {
         options.assignees = assignees.split(',').map(s => s.trim());
       }
     }
-    
+
     const tags = this.getAttribute('data-tags');
     if (tags) {
       try {
@@ -2774,7 +3142,7 @@ class OutlineElement extends HTMLElement {
         options.tags = tags.split(',').map(s => s.trim());
       }
     }
-    
+
     const statusLabels = this.getAttribute('data-status-labels');
     if (statusLabels) {
       try {
@@ -2783,7 +3151,7 @@ class OutlineElement extends HTMLElement {
         console.warn('Invalid status-labels format, using default');
       }
     }
-    
+
     // Parse feature options from data-features attribute
     const features = this.getAttribute('data-features');
     if (features) {
@@ -2793,7 +3161,7 @@ class OutlineElement extends HTMLElement {
         console.warn('Invalid features format, using default');
       }
     }
-    
+
     // Parse options from options attribute (JSON)
     const optionsAttr = this.getAttribute('options');
     if (optionsAttr) {
@@ -2804,7 +3172,7 @@ class OutlineElement extends HTMLElement {
         console.warn('Invalid options JSON, using individual attributes');
       }
     }
-    
+
     return options;
   }
 
@@ -2818,20 +3186,20 @@ class OutlineElement extends HTMLElement {
         console.warn('Invalid todos JSON, falling back to children');
       }
     }
-    
+
     // Fallback: parse from existing children (backward compatibility)
     return this.parseTodosFromChildren();
   }
 
   parseTodosFromChildren() {
     const todos = [];
-    
+
     // Convert existing li elements to todo objects
     this.querySelectorAll('li').forEach(li => {
       const todo = this.liToTodoObject(li);
       todos.push(todo);
     });
-    
+
     return todos;
   }
 
@@ -2842,33 +3210,33 @@ class OutlineElement extends HTMLElement {
       status: li.querySelector('.outline-label')?.textContent || 'TODO',
       classes: Array.from(li.classList).join(' ')
     };
-    
+
     // Parse metadata
     const schedule = li.querySelector('.outline-schedule');
     if (schedule) {
       todo.schedule = schedule.textContent.trim();
     }
-    
+
     const assign = li.querySelector('.outline-assign');
     if (assign) {
       todo.assign = assign.textContent.trim();
     }
-    
+
     const tags = li.querySelector('.outline-tags');
     if (tags) {
       todo.tags = tags.textContent.trim().split(/\s+/).filter(tag => tag.length > 0);
     }
-    
+
     const priority = li.querySelector('.outline-priority');
     if (priority) {
       todo.priority = true;
     }
-    
-    const onhold = li.querySelector('.outline-onhold');
-    if (onhold) {
-      todo.onHold = true;
-    }
-    
+
+          const blocked = li.querySelector('.outline-blocked');
+      if (blocked) {
+        todo.blocked = true;
+      }
+
     // Handle nested todos
     const sublist = li.querySelector('ul');
     if (sublist) {
@@ -2877,7 +3245,7 @@ class OutlineElement extends HTMLElement {
         todo.children.push(this.liToTodoObject(childLi));
       });
     }
-    
+
     return todo;
   }
 
@@ -2892,12 +3260,12 @@ class OutlineElement extends HTMLElement {
     const li = document.createElement('li');
     li.dataset.id = todo.id;
     li.tabIndex = 0;
-    
+
     // Add classes
     if (todo.classes) {
       li.className = todo.classes;
     }
-    
+
     // Add status classes based on todo state
     if (todo.status === 'DONE' || todo.completed) {
       li.classList.add('completed');
@@ -2914,13 +3282,13 @@ class OutlineElement extends HTMLElement {
     if (todo.priority) {
       li.classList.add('priority');
     }
-    if (todo.onHold) {
-      li.classList.add('on-hold');
+    if (todo.blocked) {
+      li.classList.add('blocked');
     }
     if (todo.children && todo.children.length > 0) {
       li.classList.add('has-children');
     }
-    
+
     // Create label span
     const labelSpan = document.createElement('span');
     labelSpan.className = 'outline-label';
@@ -2929,19 +3297,19 @@ class OutlineElement extends HTMLElement {
       labelSpan.style.display = 'none';
     }
     li.appendChild(labelSpan);
-    
+
     // Add space
     li.appendChild(document.createTextNode(' '));
-    
+
     // Create text span
     const textSpan = document.createElement('span');
     textSpan.className = 'outline-text';
     textSpan.textContent = todo.text;
     li.appendChild(textSpan);
-    
+
     // Add child count if needed
     if (todo.children && todo.children.length > 0) {
-      const completedCount = todo.children.filter(child => 
+      const completedCount = todo.children.filter(child =>
         child.status === 'DONE' || child.completed
       ).length;
       const countSpan = document.createElement('span');
@@ -2949,7 +3317,7 @@ class OutlineElement extends HTMLElement {
       countSpan.textContent = `[${completedCount}/${todo.children.length}]`;
       li.appendChild(countSpan);
     }
-    
+
     // Add metadata spans (hidden)
     if (todo.schedule) {
       const scheduleSpan = document.createElement('span');
@@ -2958,7 +3326,7 @@ class OutlineElement extends HTMLElement {
       scheduleSpan.textContent = ` ${todo.schedule}`;
       li.appendChild(scheduleSpan);
     }
-    
+
     if (todo.assign) {
       const assignSpan = document.createElement('span');
       assignSpan.className = 'outline-assign';
@@ -2966,7 +3334,7 @@ class OutlineElement extends HTMLElement {
       assignSpan.textContent = ` ${todo.assign}`;
       li.appendChild(assignSpan);
     }
-    
+
     if (todo.tags && todo.tags.length > 0) {
       const tagsSpan = document.createElement('span');
       tagsSpan.className = 'outline-tags';
@@ -2974,7 +3342,7 @@ class OutlineElement extends HTMLElement {
       tagsSpan.textContent = ` ${todo.tags.join(' ')}`;
       li.appendChild(tagsSpan);
     }
-    
+
     if (todo.priority) {
       const prioritySpan = document.createElement('span');
       prioritySpan.className = 'outline-priority';
@@ -2982,15 +3350,15 @@ class OutlineElement extends HTMLElement {
       prioritySpan.textContent = ' priority';
       li.appendChild(prioritySpan);
     }
-    
-    if (todo.onHold) {
-      const onholdSpan = document.createElement('span');
-      onholdSpan.className = 'outline-onhold';
-      onholdSpan.style.display = 'none';
-      onholdSpan.textContent = ' on hold';
-      li.appendChild(onholdSpan);
+
+    if (todo.blocked) {
+      const blockedSpan = document.createElement('span');
+      blockedSpan.className = 'outline-blocked';
+      blockedSpan.style.display = 'none';
+      blockedSpan.textContent = ' blocked';
+      li.appendChild(blockedSpan);
     }
-    
+
     // Handle nested todos
     if (todo.children && todo.children.length > 0) {
       const sublist = document.createElement('ul');
@@ -3000,24 +3368,24 @@ class OutlineElement extends HTMLElement {
       });
       li.appendChild(sublist);
     }
-    
+
     return li;
   }
 
   // Public method to update todos from JavaScript
   setTodos(todos) {
     if (!this.todoList) return;
-    
+
     const listEl = this.shadowRoot.querySelector('.outline-list');
     listEl.innerHTML = '';
     this.renderTodos(listEl, todos);
-    
+
     // Clean up any existing add button before reinitializing
     const existingAddButton = this.shadowRoot.querySelector('.outline-add-button');
     if (existingAddButton) {
       existingAddButton.remove();
     }
-    
+
     // Reinitialize the Outline with new content
     const options = this.parseOptions();
     this.todoList = new Outline(listEl, options);
@@ -3027,14 +3395,14 @@ class OutlineElement extends HTMLElement {
   // Public method to get current todos as JSON
   getTodos() {
     if (!this.todoList) return [];
-    
+
     const listEl = this.shadowRoot.querySelector('.outline-list');
     const todos = [];
-    
+
     listEl.querySelectorAll('li').forEach(li => {
       todos.push(this.liToTodoObject(li));
     });
-    
+
     return todos;
   }
 
@@ -3054,7 +3422,7 @@ class OutlineElement extends HTMLElement {
   // Re-render the component when data-items attribute changes
   rerenderFromAttribute() {
     if (!this.todoList) return;
-    
+
     const todos = this.parseTodos();
     this.setTodos(todos);
   }
@@ -3083,7 +3451,7 @@ class OutlineElement extends HTMLElement {
           --clarity-outline-light-input-border: #ced4da;
           --clarity-outline-light-popup-bg: #ffffff;
           --clarity-outline-light-popup-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          
+
           /* Dark theme colors */
           --clarity-outline-dark-bg-primary: #1e1e1e;
           --clarity-outline-dark-bg-secondary: #2d2d2d;
@@ -3099,13 +3467,13 @@ class OutlineElement extends HTMLElement {
           --clarity-outline-dark-input-border: #555;
           --clarity-outline-dark-popup-bg: #2d2d2d;
           --clarity-outline-dark-popup-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          
+
           /* Semantic colors */
           --clarity-outline-color-todo: #d16d7a;
           --clarity-outline-color-done: #6c757d;
           --clarity-outline-color-priority: #5f9fb0;
-          --clarity-outline-color-onhold: #f39c12;
-          
+          --clarity-outline-color-blocked: #f39c12;
+
           /* Theme variables - inherit from parent or use defaults */
           --clarity-outline-bg-primary: var(--clarity-outline-bg-primary, #1e1e1e);
           --clarity-outline-bg-secondary: var(--clarity-outline-bg-secondary, #2d2d2d);
@@ -3121,7 +3489,7 @@ class OutlineElement extends HTMLElement {
           --clarity-outline-input-border: var(--clarity-outline-input-border, #555);
           --clarity-outline-popup-bg: var(--clarity-outline-popup-bg, #2d2d2d);
           --clarity-outline-popup-shadow: var(--clarity-outline-popup-shadow, 0 4px 12px rgba(0, 0, 0, 0.3));
-          
+
           /* Component-level customization properties */
           --clarity-outline-spacing: 0.3rem;
           --clarity-outline-padding: 0.5rem;
@@ -3139,7 +3507,7 @@ class OutlineElement extends HTMLElement {
           --clarity-outline-input-border-radius: 2px;
           --clarity-outline-input-padding: 0.2rem 0.4rem;
         }
-      
+
       /* Add todo button styling */
       .outline-add-button {
         display: block;
@@ -3155,13 +3523,23 @@ class OutlineElement extends HTMLElement {
         text-align: left;
         border-radius: var(--clarity-outline-border-radius);
         transition: all var(--clarity-outline-transition-duration) ease;
+        max-width: 100%;
+        overflow: hidden;
       }
-      
+
+      /* Mobile-friendly add button */
+      @media (max-width: 768px) {
+        .outline-add-button {
+          padding: 0.4rem 0 0.4rem 0.4rem;
+          font-size: 0.85em;
+        }
+      }
+
       .outline-add-button:hover {
         color: var(--clarity-outline-text-primary);
         background: var(--clarity-outline-hover);
       }
-      
+
       /* Todo List Package Styles - Scoped to .outline-list */
       .outline-list {
         /* Base list styling */
@@ -3172,19 +3550,29 @@ class OutlineElement extends HTMLElement {
         margin-block-end: 0;
         font-family: var(--clarity-outline-font-family);
         font-size: var(--clarity-outline-font-size);
-      
+        max-width: 100%;
+        overflow: visible;
+
         /* Nested list styling */
         ul {
           margin: 0;
           padding-left: var(--clarity-outline-nested-indent);
           border-left: var(--clarity-outline-nested-border-width) var(--clarity-outline-nested-border-style) var(--clarity-outline-border);
           list-style: none;
-      
+          width: 100%;
+
           li:first-child {
             margin-top: var(--clarity-outline-spacing);
           }
         }
-      
+
+        /* Mobile-friendly nested list adjustments */
+        @media (max-width: 768px) {
+          ul {
+            padding-left: calc(var(--clarity-outline-nested-indent) * 0.75);
+          }
+        }
+
         /* List item styling */
         li {
           cursor: pointer;
@@ -3192,16 +3580,20 @@ class OutlineElement extends HTMLElement {
           padding: var(--clarity-outline-spacing) var(--clarity-outline-padding);
           position: relative;
           transition: background-color var(--clarity-outline-transition-duration) ease;
-      
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.25rem;
+
           &:not(:has(> ul li:hover)):hover {
             background: var(--clarity-outline-hover);
           }
-      
+
           &:focus {
             background: var(--clarity-outline-focus);
             outline: none;
           }
-      
+
           &.completed {
             > .outline-label {
               color: var(--clarity-outline-color-done);
@@ -3212,28 +3604,28 @@ class OutlineElement extends HTMLElement {
               text-decoration: line-through;
             }
           }
-      
+
           &.no-label {
             > .outline-text {
               color: var(--clarity-outline-text-primary);
             }
           }
-      
+
           &.collapsed::after {
             content: " ▾";
           }
-      
+
           &.editing {
             display: flex;
             align-items: center;
             gap: 0;
           }
-      
+
           &.editing > ul {
             display: none !important;
           }
         }
-      
+
         /* Label and text inline */
         .outline-label {
           font-weight: bold;
@@ -3241,37 +3633,37 @@ class OutlineElement extends HTMLElement {
           user-select: none;
           margin-right: 0.3rem;
         }
-      
+
         .outline-text {
           display: inline-block;
         }
-      
+
         .child-count {
           font-size: 0.85em;
           color: var(--clarity-outline-text-muted);
           margin-left: 0.5rem;
           user-select: none;
         }
-      
+
         /* Schedule and assign indicators */
         .outline-schedule {
           font-size: 0.85em;
           color: var(--clarity-outline-text-secondary);
           margin-left: 0.5rem;
         }
-      
+
         .outline-assign {
           font-size: 0.85em;
           color: var(--clarity-outline-text-secondary);
           margin-left: 0.5rem;
         }
-      
+
         .outline-tags {
           font-size: 0.85em;
           color: var(--clarity-outline-text-secondary);
           margin-left: 0.5rem;
         }
-      
+
         /* Edit input styling */
         .outline-edit-input {
           flex: 1;
@@ -3283,35 +3675,58 @@ class OutlineElement extends HTMLElement {
           padding: var(--clarity-outline-input-padding);
           border-radius: var(--clarity-outline-input-border-radius);
           outline: none;
+          min-width: 0;
+          max-width: 100%;
         }
-      
+
+        /* Mobile-friendly edit input */
+        @media (max-width: 768px) {
+          .outline-edit-input {
+            font-size: 16px; /* Prevents zoom on iOS */
+            padding: 0.3rem 0.5rem;
+          }
+        }
+
         .outline-edit-input:focus {
           border-color: var(--clarity-outline-border-focus);
         }
-      
+
         li.editing .outline-text {
           display: none;
         }
-      
 
-      
 
-      
+
+
+
         /* Hover buttons */
         .outline-hover-buttons {
           display: none;
           margin-left: 0.5rem;
           gap: 0.5rem;
           align-items: center;
+          flex-wrap: wrap;
+          max-width: calc(100vw - 2rem);
+          overflow: hidden;
         }
-      
+
         /* Consistent spacing for hover buttons after child-count */
         .child-count + .outline-hover-buttons {
           margin-left: 0.5rem;
         }
-      
+
+        /* Mobile-friendly button container */
+        @media (max-width: 768px) {
+          .outline-hover-buttons {
+            margin-left: 0.25rem;
+            gap: 0.25rem;
+            max-width: calc(100vw - 1rem);
+            justify-content: flex-start;
+          }
+        }
+
         /* Note: Button visibility is now handled entirely by JavaScript */
-      
+
         .hover-button {
           background: none;
           border: none;
@@ -3323,42 +3738,52 @@ class OutlineElement extends HTMLElement {
           white-space: nowrap;
           font-family: inherit;
           outline: none;
+          min-width: 0;
+          flex-shrink: 1;
         }
-      
+
+        /* Mobile-friendly button adjustments */
+        @media (max-width: 768px) {
+          .hover-button {
+            font-size: 0.75em;
+            padding: 0.1rem 0.2rem;
+          }
+        }
+
         .hover-button:hover {
           color: var(--clarity-outline-text-secondary) !important;
         }
-      
+
         .hover-button.has-data {
           color: var(--clarity-outline-text-secondary);
         }
-      
+
         .hover-button:not(.has-data) {
           color: var(--clarity-outline-text-muted);
           font-style: italic;
         }
-      
+
         .hover-button.priority-button.has-data {
           color: var(--clarity-outline-color-priority);
           font-weight: bold;
         }
-      
-        .hover-button.onhold-button.has-data {
-          color: var(--clarity-outline-color-onhold);
+
+        .hover-button.blocked-button.has-data {
+          color: var(--clarity-outline-color-blocked);
           font-weight: bold;
         }
-      
-        /* Priority and on-hold indicators */
+
+        /* Priority and blocked indicators */
         .priority-indicator {
           color: var(--color-priority);
           margin-left: 0.3rem;
         }
-      
-        .onhold-indicator {
-          color: var(--color-onhold);
+
+                  .blocked-indicator {
+          color: var(--color-blocked);
           margin-left: 0.3rem;
         }
-      
+
         /* Popup styling */
         .outline-popup {
           position: absolute;
@@ -3366,16 +3791,43 @@ class OutlineElement extends HTMLElement {
           border: 1px solid var(--clarity-outline-border);
           border-radius: var(--clarity-outline-popup-border-radius);
           padding: var(--clarity-outline-popup-padding);
-          z-index: 100;
+          z-index: 1000;
           box-shadow: var(--clarity-outline-popup-shadow);
           min-width: var(--clarity-outline-popup-min-width);
         }
-      
+
         /* Date popup */
         .date-popup {
           min-width: 150px;
         }
-      
+
+        /* Notes popup specific styling */
+        .notes-popup {
+          min-width: 200px;
+          max-width: 400px;
+          padding: 1rem;
+        }
+
+        .notes-popup .notes-textarea {
+          width: 200px !important;
+          min-height: 200px !important;
+          max-height: 400px;
+          resize: vertical;
+          font-family: inherit;
+          line-height: 1.4;
+          box-sizing: border-box;
+          border: 1px solid var(--clarity-outline-border);
+          border-radius: 4px;
+          background: var(--clarity-outline-bg-tertiary);
+          color: var(--clarity-outline-text-primary);
+        }
+
+        .notes-popup .notes-textarea:focus {
+          outline: none;
+          border-color: var(--clarity-outline-border-focus);
+          box-shadow: 0 0 0 2px rgba(102, 217, 239, 0.2);
+        }
+
         .date-popup button {
           background: none;
           border: none;
@@ -3384,24 +3836,24 @@ class OutlineElement extends HTMLElement {
           font-family: inherit;
           padding: 0.3rem 0.6rem;
         }
-      
+
         .date-popup button:hover {
           color: var(--clarity-outline-text-primary);
           background: var(--clarity-outline-hover);
           border-radius: 2px;
         }
-      
+
         .date-popup button:focus {
           outline: none;
           color: var(--clarity-outline-text-primary);
           background: var(--clarity-outline-hover);
           border-radius: 2px;
         }
-      
+
         .date-popup button:active {
           background: var(--clarity-outline-focus);
         }
-      
+
         /* Dropdown popup */
         .dropdown-popup .dropdown-item {
           padding: 0.4rem 0.6rem;
@@ -3409,33 +3861,34 @@ class OutlineElement extends HTMLElement {
           border-radius: 2px;
           color: var(--clarity-outline-text-secondary);
         }
-      
+
         .dropdown-popup .dropdown-item:hover {
           background: var(--clarity-outline-bg-tertiary);
         }
-      
+
         .dropdown-popup .dropdown-item.selected {
-          background: var(--clarity-outline-color-done);
-          color: var(--clarity-outline-bg-primary);
+          background: transparent;
+          color: var(--clarity-outline-text-primary);
+          border: 2px solid var(--clarity-outline-border);
         }
-      
+
         .dropdown-popup .dropdown-item:focus {
           outline: none;
           background: rgba(102, 217, 239, 0.3);
         }
-      
+
         .dropdown-popup .tag-item label {
           display: flex;
           align-items: center;
           cursor: pointer;
           width: 100%;
         }
-      
+
         .dropdown-popup .tag-item label input[type="checkbox"] {
           margin-right: 0.5rem;
           cursor: pointer;
         }
-      
+
         .dropdown-popup .dropdown-input {
           width: 100%;
           box-sizing: border-box;
@@ -3447,7 +3900,7 @@ class OutlineElement extends HTMLElement {
           border-radius: 2px;
           font-family: inherit;
         }
-      
+
         .dropdown-popup .dropdown-input:focus {
           outline: none;
           border-color: var(--clarity-outline-border-focus);
@@ -3462,7 +3915,7 @@ class OutlineElement extends HTMLElement {
   applyThemeFromParent() {
     // Get CSS custom properties from parent document
     const parentStyle = getComputedStyle(document.documentElement);
-    
+
     // Apply them to the web component
     const properties = [
       '--clarity-outline-bg-primary', '--clarity-outline-bg-secondary', '--clarity-outline-bg-tertiary',
@@ -3470,7 +3923,7 @@ class OutlineElement extends HTMLElement {
       '--clarity-outline-border', '--clarity-outline-border-focus', '--clarity-outline-hover', '--clarity-outline-focus',
       '--clarity-outline-input-bg', '--clarity-outline-input-border', '--clarity-outline-popup-bg', '--clarity-outline-popup-shadow'
     ];
-    
+
     properties.forEach(prop => {
       const value = parentStyle.getPropertyValue(prop);
       if (value) {
@@ -3488,7 +3941,7 @@ class OutlineElement extends HTMLElement {
         }
       });
     });
-    
+
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['style']
@@ -3500,13 +3953,13 @@ class OutlineElement extends HTMLElement {
       'outline:add', 'outline:toggle', 'outline:move', 'outline:indent', 'outline:outdent',
       'outline:collapse', 'outline:expand', 'outline:edit:start', 'outline:edit:save',
       'outline:edit:cancel', 'outline:due', 'outline:assign', 'outline:tags',
-      'outline:priority', 'outline:onhold', 'outline:navigate', 'outline:select',
+              'outline:priority', 'outline:blocked', 'outline:open', 'outline:select',
       'outline:notes', 'outline:remove'
     ];
-    
+
     // Get the list element where events are dispatched
     const listEl = this.shadowRoot.querySelector('.outline-list');
-    
+
     events.forEach(eventName => {
       listEl.addEventListener(eventName, (e) => {
         // Create a new event that bubbles up from the web component
