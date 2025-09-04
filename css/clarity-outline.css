@@ -1,0 +1,59 @@
+/* Page theme variables */
+:root {
+  /* Default dark theme for page */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #333333;
+  --text-primary: #f8f8f2;
+  --text-secondary: #ddd;
+  --text-muted: #888;
+  --border: #555;
+  --hover: rgba(255, 255, 255, 0.05);
+  
+  /* Web component theme variables */
+  --clarity-outline-bg-primary: #1e1e1e;
+  --clarity-outline-bg-secondary: #2d2d2d;
+  --clarity-outline-bg-tertiary: #333333;
+  --clarity-outline-text-primary: #f8f8f2;
+  --clarity-outline-text-secondary: #ddd;
+  --clarity-outline-text-muted: #888;
+  --clarity-outline-border: #555;
+  --clarity-outline-border-focus: #f92672;
+  --clarity-outline-hover: rgba(255, 255, 255, 0.05);
+  --clarity-outline-focus: rgba(255, 255, 255, 0.1);
+  --clarity-outline-input-bg: #2d2d2d;
+  --clarity-outline-input-border: #555;
+  --clarity-outline-popup-bg: #2d2d2d;
+  --clarity-outline-popup-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Light theme for page */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --border: #dee2e6;
+    --hover: rgba(0, 0, 0, 0.05);
+    
+    /* Light theme for web components */
+    --clarity-outline-bg-primary: #ffffff;
+    --clarity-outline-bg-secondary: #f8f9fa;
+    --clarity-outline-bg-tertiary: #e9ecef;
+    --clarity-outline-text-primary: #212529;
+    --clarity-outline-text-secondary: #6c757d;
+    --clarity-outline-text-muted: #adb5bd;
+    --clarity-outline-border: #dee2e6;
+    --clarity-outline-border-focus: #007bff;
+    --clarity-outline-hover: rgba(0, 0, 0, 0.05);
+    --clarity-outline-focus: rgba(0, 0, 0, 0.1);
+    --clarity-outline-input-bg: #ffffff;
+    --clarity-outline-input-border: #ced4da;
+    --clarity-outline-popup-bg: #ffffff;
+    --clarity-outline-popup-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
