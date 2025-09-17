@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard-First Outlining | Andreas Flakstad</title>
+  <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body>
+
+  <header>
+    
+  </header>
+
+  <main>
+    
+<article class="post-single">
+
+  
+  <p class="post-date">Jan 27, 2025</p>
+
+  
+  <h1 class="post-title">Keyboard-First Outlining</h1>
+
+  
+  <div class="post-content">
+    <p>For as long as I’ve had to manage projects, I’ve disliked the tools built for the job.<br>
+Notion, Asana, Trello, Jira, ..all powerful, but also bloated, complicated, and designed around the mouse. Basecamp is a nice breath of fresh air with it&rsquo;s focus on communication, but still falls short of the fluid keyboard-driven workflow I’ve always wanted.</p>
+<p>Meanwhile, I kept coming back to my old favorite: Emacs org-mode.<br>
+Org has everything I love: hierarchical outlines, flexible todos, notes, deadlines, and lightning-fast keyboard navigation. The problem is, it’s not built for teams. Nobody else can easily see your progress. You end up either isolated in your org files or forced back into the big, bloated tools.</p>
+<p>What I really want is simple: the speed and focus of org-mode combined with the visibility and integration of a web app. None of the existing tools get this balance right, so I’ve started building my own. The long-term vision is a full project management tool shaped by these principles, but the first step is small: an outline component for the web, inspired by org-mode.</p>
+<p>Here’s what it looks like:</p>
+<script src="/js/clarity-outline.js"></script>
+<link rel="stylesheet" href="/css/clarity-outline.css">
+
+<div class="clarity-outline-demo">
+  <clarity-outline 
+    data-items='[
+      {"id":"1","text":"Buy milk","status":"TODO"},
+      {"id":"2","text":"Take out the trash","status":"IN PROGRESS"},
+      {"id":"3","text":"Call mom","status":"DONE"},
+      {"id":"4","text":"Read email","status":"TODO"},
+      {
+        "id": "5",
+        "text": "Project Planning",
+        "status": "none",
+        "noLabel": true,
+        "children": [
+          {
+            "id": "6",
+            "text": "Define requirements",
+            "status": "TODO",
+            "schedule": ""
+          },
+          {
+            "id": "7",
+            "text": "Create wireframes",
+            "status": "TODO",
+            "assign": "",
+            "tags": []
+          }
+        ]
+      },
+      {"id":"8","text":"Fix the broken lamp","status":"CANCELLED"},
+      {"id":"9","text":"Write blog post","status":"IN PROGRESS"}
+    ]'
+    options='{"statusLabels": [{"label": "TODO", "isEndState": false}, {"label": "IN PROGRESS", "isEndState": false}, {"label": "DONE", "isEndState": true}, {"label": "CANCELLED", "isEndState": true}]}'>
+  </clarity-outline>
+</div>
+
+<p>The component is designed for keyboard-first interaction. You can fly through your tasks with arrows, use <code>Alt+arrow</code> to indent or outdent, and <code>Alt+Tab</code> to collapse or expand. When an item is focused, actions can be done with a single key press: <strong>E</strong> to edit, <strong>S</strong> to change status, <strong>P</strong> to mark priority, <strong>A</strong> to assign, etc. Mouse users aren’t left out: hover actions expose the same controls with shortcut hints. You won’t rich task descriptions, comment threads or file uploads here; those belong on dedicated item pages. This component is the fast, structured backbone you can plug into bigger systems.</p>
+<p>The outline takes JSON as input and emits events for every interaction. My plan is to drive it with <a href="https://data-star.dev/">Datastar</a> with the server pushing live updates, but it can slot into any context.</p>
+<p>My aim is to bring the clarity of org-mode into team-friendly web tools without sacrificing speed or simplicity. Maybe an agenda view or capture templates are up next?</p>
+<p>Source code: <a href="https://github.com/andreasflakstad/clarity-outline">github.com/andreasflakstad/clarity-outline</a></p>
+  </div>
+
+  <footer class="custom-footer">
+  <p>Andreas Flakstad</p>
+  <p>
+    <a href="/">Blog</a> ·
+    <a href="mailto:hey@andreasflakstad.no">Email</a>
+  </p>
+</footer>
+</article>
+
+  </main>
+
+
+</body>
+</html>
