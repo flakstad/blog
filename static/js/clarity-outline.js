@@ -14,7 +14,8 @@ class Outline {
       archive: true,
       addButton: true,
       navigation: true,
-      reorder: true
+      reorder: true,
+      dragAndDrop: true
     };
 
     // Merge user features with defaults
@@ -42,7 +43,7 @@ class Outline {
       const taskItem = TaskItem.fromElement(li, this);
       // TaskItem initialization handles tabIndex, buttons, and status label click handler
     });
-
+    
     this.bindEvents();
     this.initNewTodoButton();
 
@@ -51,6 +52,11 @@ class Outline {
       this.updateChildCount(li);
       this.updateHoverButtonsVisibility(li);
     });
+
+    // Initialize drag-and-drop if enabled
+    if (this.options.features.dragAndDrop) {
+      this.initDragAndDrop();
+    }
   }
 
   getCurrentUser() {
@@ -61,20 +67,58 @@ class Outline {
     return li.dataset.editable !== 'false';
   }
 
-  showPermissionDeniedFeedback(li) {
+  showPermissionDeniedFeedback(li, action = 'edit') {
     // Add a subtle visual feedback that the action is not permitted
     li.classList.add('permission-denied');
-
+    
     // Remove the class after a short delay
     setTimeout(() => {
       li.classList.remove('permission-denied');
     }, 1000);
-
+    
     // Emit a permission denied event for external handling
     this.emit('outline:permission-denied', {
       id: li.dataset.id,
-      action: 'edit'
+      action: action
     });
+  }
+
+  hasIncompleteChildren(li) {
+    // Check if this todo has children that are not completed
+    const sublist = li.querySelector("ul");
+    if (!sublist || sublist.children.length === 0) {
+      return false; // No children, so no incomplete children
+    }
+
+    // Get direct children only (not nested descendants)
+    const directChildren = Array.from(sublist.children).filter(c => c.tagName === "LI");
+    // Only count items with labels as "completable" - exclude header-like (no-label) children
+    const completableChildren = directChildren.filter(c => !c.classList.contains("no-label"));
+    
+    if (completableChildren.length === 0) {
+      return false; // No completable children
+    }
+
+    // Check if any completable children are not completed
+    const incompleteChildren = completableChildren.filter(c => !c.classList.contains("completed"));
+    return incompleteChildren.length > 0;
+  }
+
+  canCompleteParent(li, targetStatus) {
+    // Only apply this restriction when trying to set to a completed state
+    if (!targetStatus.startsWith('status-')) {
+      return true; // Allow non-status changes (like 'none')
+    }
+
+    const statusIndex = parseInt(targetStatus.split('-')[1]);
+    const statusLabel = this.options.statusLabels[statusIndex];
+    
+    if (!statusLabel || !statusLabel.isEndState) {
+      return true; // Not trying to set to completed state
+    }
+
+    // Check if this todo has incomplete children
+    return !this.hasIncompleteChildren(li);
   }
 
   initNewTodoButton() {
@@ -103,7 +147,7 @@ class Outline {
   createNewTodo() {
     // Create a new TaskItem and enter edit mode immediately
     const taskItem = TaskItem.create(this, "New todo", "TODO");
-
+    
     // Add to the list
     this.el.appendChild(taskItem.li);
 
@@ -468,9 +512,13 @@ class Outline {
         return;
       }
 
-      // Create new sibling todo with Alt+Enter
+      // Create new sibling todo with Alt+Enter (only if enabled)
       if(e.key==="Enter" && e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
+        if (!this.options.features.addButton) {
+          this.showPermissionDeniedFeedback(li, 'add-new-item');
+          return;
+        }
         this.addSiblingTodo(li);
         return;
       }
@@ -702,7 +750,7 @@ class Outline {
     li.appendChild(spanText);
 
     // Add hover buttons
-    this.addHoverButtons(li);
+    this.addHoverButtons(li);    
 
     if (parentLi) {
       let sublist = parentLi.querySelector("ul");
@@ -710,6 +758,11 @@ class Outline {
         sublist = document.createElement("ul");
         parentLi.appendChild(sublist);
         parentLi.classList.add("has-children");
+        
+        // Initialize sortable on new sublist if drag-and-drop is enabled
+        if (this.options.features.dragAndDrop) {
+          this.initSortableOnNewSublist(sublist);
+        }
       }
       sublist.appendChild(li);
     } else {
@@ -728,6 +781,10 @@ class Outline {
         this.updateChildCount(grandparentLi);
         grandparentLi = grandparentLi.parentNode.closest("li");
       }
+      
+      // Ensure the direct parent counter is correct after grandparent updates
+      // This fixes a bug where nested no-label parents don't get counters
+      this.updateChildCount(parentLi);
     }
   }
 
@@ -745,6 +802,11 @@ class Outline {
       sublist=document.createElement("ul");
       prev.appendChild(sublist);
       prev.classList.add("has-children");
+      
+      // Initialize sortable on new sublist if drag-and-drop is enabled
+      if (this.options.features.dragAndDrop) {
+        this.initSortableOnNewSublist(sublist);
+      }
     }
     sublist.appendChild(li); li.focus();
     this.emit("outline:indent",{id:li.dataset.id,parent:prev.dataset.id});
@@ -776,6 +838,10 @@ class Outline {
       // The moved item had children, so we need to update its count
       this.updateChildCount(li);
     }
+    
+    // FINAL FIX: Ensure the direct parent counter is correct after all other updates
+    // This fixes a bug where nested no-label parents don't get counters during indenting
+    this.updateChildCount(prev);
   }
 
   outdentItem(li){
@@ -819,6 +885,13 @@ class Outline {
     if (movedItemChildren.length > 0) {
       this.updateChildCount(li);
     }
+    
+    // FINAL FIX: Ensure all affected parents have correct counters after outdenting
+    // This fixes a bug where parents lose counters during outdenting operations
+    this.updateChildCount(parentLi);
+    if (newParentLi) {
+      this.updateChildCount(newParentLi);
+    }
   }
 
   collapseItem(li){
@@ -859,21 +932,25 @@ class Outline {
     const completableChildren = directChildren.filter(c => !c.classList.contains("no-label"));
     const doneCount = completableChildren.filter(c => c.classList.contains("completed")).length;
 
-    if (!countSpan) {
-        countSpan = document.createElement("span");
-        countSpan.className = "child-count";
-    }
-
-    // Always position the child-count correctly (whether new or existing)
-    this.positionChildCount(li, countSpan);
-
     // Show count only if there are completable children
     if (completableChildren.length > 0) {
-        countSpan.textContent = `[${doneCount}/${completableChildren.length}]`;
+        // Create or reuse count span
+        if (!countSpan) {
+            countSpan = document.createElement("span");
+            countSpan.className = "child-count";
+        }
+        
+        // Always position the child-count correctly (whether new or existing)
+        this.positionChildCount(li, countSpan);
+        
+        // Create progress bar instead of text
+        this.createProgressBar(countSpan, doneCount, completableChildren.length);
         countSpan.style.display = "";
     } else {
         // Remove the count span entirely when no completable children
-        countSpan.remove();
+        if (countSpan) {
+            countSpan.remove();
+        }
     }
   }
 
@@ -886,6 +963,67 @@ class Outline {
 
     // Always insert directly after the text span
     textSpan.after(countSpan);
+  }
+
+  createProgressBar(container, doneCount, totalCount) {
+    Outline.createProgressBar(container, doneCount, totalCount);
+  }
+
+  static createProgressBar(container, doneCount, totalCount) {
+    // Clear existing content
+    container.innerHTML = '';
+    
+    // Create progress bar container
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'progress-container';
+    
+    // Create progress bar background
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+    
+    // Create progress fill
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
+    
+    // Calculate progress percentage
+    const progressPercentage = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+    progressFill.style.width = `${progressPercentage}%`;
+    
+    // Create text overlay with numbers positioned on top of the bar
+    const progressText = document.createElement('div');
+    progressText.className = 'progress-text';
+    progressText.textContent = `${doneCount}/${totalCount}`;
+    
+    // Position text based on progress with half-white/half-black effect
+    if (progressPercentage >= 50) {
+      // If half or more complete, show text on the completed portion (white for contrast)
+      progressText.style.color = '#ffffff';
+      progressText.style.textShadow = '0 0 2px rgba(0,0,0,0.3)';
+    } else {
+      // If less than half complete, show text on the uncompleted portion (darker for better contrast)
+      progressText.style.color = 'var(--clarity-outline-text-primary)';
+    }
+    
+    // Create half-white/half-black effect for text when around 50% complete
+    if (progressPercentage >= 40 && progressPercentage <= 60) {
+      // Create a gradient effect that splits the text
+      const gradientStop = ((progressPercentage - 40) / 20) * 100; // 0-100% based on 40-60% progress
+      progressText.style.background = `linear-gradient(90deg, 
+        #ffffff 0%, 
+        #ffffff ${gradientStop}%, 
+        var(--clarity-outline-text-primary) ${gradientStop}%, 
+        var(--clarity-outline-text-primary) 100%)`;
+      progressText.style.webkitBackgroundClip = 'text';
+      progressText.style.backgroundClip = 'text';
+      progressText.style.webkitTextFillColor = 'transparent';
+      progressText.style.textShadow = 'none';
+    }
+    
+    // Assemble the progress bar with text positioned on top
+    progressBar.appendChild(progressFill);
+    progressBar.appendChild(progressText);
+    progressContainer.appendChild(progressBar);
+    container.appendChild(progressContainer);
   }
 
 
@@ -930,8 +1068,12 @@ class Outline {
       if (e.key === "Enter") {
         e.preventDefault();
         if (e.altKey) {
-          // Alt+Enter: Save current edit and add new todo
+          // Alt+Enter: Save current edit and add new todo (only if enabled)
           this.saveEdit(li, input.value);
+          if (!this.options.features.addButton) {
+            this.showPermissionDeniedFeedback(li, 'add-new-item');
+            return;
+          }
           // Add new sibling todo after the current one and enter edit mode
           this.addSiblingTodo(li);
         } else {
@@ -1076,6 +1218,8 @@ class Outline {
     // Add hover buttons
     this.addHoverButtons(newLi);
 
+    // Drag handles are no longer needed - entire items are draggable
+
     // Insert after current li
     li.after(newLi);
 
@@ -1168,12 +1312,26 @@ class Outline {
     if (li.classList.contains("no-label")) {
       // no label → first status
       nextState = `status-0`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       li.classList.remove("no-label");
       label.style.display = "";
       label.textContent = this.options.statusLabels[0].label;
     } else if (currentIndex >= 0 && currentIndex < this.options.statusLabels.length - 1 && !this.options.statusLabels[currentIndex].isEndState) {
       // current status → next status
       nextState = `status-${currentIndex + 1}`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       label.textContent = this.options.statusLabels[currentIndex + 1].label;
 
               // Check if this should be treated as completed
@@ -1194,6 +1352,13 @@ class Outline {
           index > currentIndex && status.isEndState
         );
         nextState = `status-${nextEndStateIndex}`;
+        
+        // Check if we can complete this parent
+        if (!this.canCompleteParent(li, nextState)) {
+          this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+          return;
+        }
+        
         label.textContent = this.options.statusLabels[nextEndStateIndex].label;
         li.classList.add("completed");
       } else {
@@ -1206,6 +1371,13 @@ class Outline {
     } else {
       // fallback: no label → first status
       nextState = `status-0`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       li.classList.remove("no-label");
       label.style.display = "";
       label.textContent = this.options.statusLabels[0].label;
@@ -1246,6 +1418,13 @@ class Outline {
         .filter(index => index !== -1);
       const lastEndStateIndex = endStateIndices[endStateIndices.length - 1];
       nextState = `status-${lastEndStateIndex}`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       li.classList.remove("no-label");
       li.classList.add("completed");
       label.style.display = "";
@@ -1253,6 +1432,13 @@ class Outline {
     } else if (currentIndex > 0) {
       // current status → previous status
       nextState = `status-${currentIndex - 1}`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       label.textContent = this.options.statusLabels[currentIndex - 1].label;
 
               // Check if this should be treated as completed
@@ -1274,6 +1460,13 @@ class Outline {
         .filter(index => index !== -1);
       const lastEndStateIndex = endStateIndices[endStateIndices.length - 1];
       nextState = `status-${lastEndStateIndex}`;
+      
+      // Check if we can complete this parent
+      if (!this.canCompleteParent(li, nextState)) {
+        this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+        return;
+      }
+      
       li.classList.remove("no-label");
       li.classList.add("completed");
       label.style.display = "";
@@ -1314,7 +1507,34 @@ class Outline {
     let hoverTimeout;
     const delay = 600; // 600ms delay before showing buttons
 
-    li.addEventListener('mouseenter', () => {
+    // Use mouseover instead of mouseenter to get better control over event bubbling
+    li.addEventListener('mouseover', (e) => {
+      const targetLi = e.target.closest('li');
+      
+      // Check if the event target is a child li element
+      // If the target is a child li, don't show hover buttons for this parent
+      // AND clear any pending timeout to prevent showing buttons later
+      if (targetLi !== li) {
+        // Clear any pending timeout since we're now hovering a child
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+        // Also hide any currently visible hover buttons without data
+        const buttonsWithoutData = buttonsContainer.querySelectorAll('.hover-button:not(.has-data)');
+        buttonsWithoutData.forEach(btn => {
+          btn.style.display = 'none';
+        });
+        // Show the container only if there are buttons with data
+        const buttonsWithData = buttonsContainer.querySelectorAll('.hover-button.has-data');
+        if (buttonsWithData.length > 0) {
+          buttonsContainer.style.display = 'inline-flex';
+        } else {
+          buttonsContainer.style.display = 'none';
+        }
+        return;
+      }
+
       // Clear any existing timeout
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
@@ -1331,7 +1551,13 @@ class Outline {
       }, delay);
     });
 
-    li.addEventListener('mouseleave', () => {
+    li.addEventListener('mouseout', (e) => {
+      // Check if we're moving to a child element - if so, don't hide buttons yet
+      const relatedTarget = e.relatedTarget;
+      if (relatedTarget && li.contains(relatedTarget)) {
+        return;
+      }
+
       // Clear timeout and hide buttons without data immediately
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
@@ -1548,7 +1774,7 @@ class Outline {
       priority: 3,
       blocked: 4,
       schedule: 5,
-      due: 6,
+      due: 6,      
       assign: 7,
       tags: 8,
       comments: 9,
@@ -1613,6 +1839,8 @@ class Outline {
 
     // Check if button is visible and has proper dimensions
     const buttonRect = button.getBoundingClientRect();
+    
+    
     if (buttonRect.width === 0 || buttonRect.height === 0) {
       // Button is not visible (hidden), position relative to the todo text instead
       const li = button.closest('li');
@@ -1634,6 +1862,7 @@ class Outline {
     const positionedLeft = this.calculateCenterOrientedPosition(popup, left, containerRect.width);
     popup.style.left = `${positionedLeft}px`;
     popup.style.top = `${top}px`;
+    
   }
 
   /**
@@ -1653,23 +1882,16 @@ class Outline {
       popupWidth = 200; // Default width
     }
 
-    const centerX = containerWidth / 2;
-
-    // If the button is on the right side of the screen, open popup to the left
-    if (buttonLeft > centerX) {
-      // Position popup to the left of the button, ensuring it doesn't go off-screen
-      const popupLeft = Math.max(0, buttonLeft - popupWidth);
+    // Check if popup would go off the right edge if positioned at button location
+    const rightEdge = buttonLeft + popupWidth;
+    
+    if (rightEdge > containerWidth - 10) {
+      // Popup would go off-screen, position it to the left to keep it visible
+      const popupLeft = Math.max(0, containerWidth - popupWidth - 10);
       return popupLeft;
     } else {
-      // Button is on the left side, open popup to the right (default behavior)
-      const rightEdge = buttonLeft + popupWidth;
-      if (rightEdge > containerWidth) {
-        // Adjust left position to keep popup within container
-        const adjustedLeft = Math.max(0, containerWidth - popupWidth - 10);
-        return adjustedLeft;
-      } else {
-        return buttonLeft;
-      }
+      // Popup fits at button location, use button position
+      return buttonLeft;
     }
   }
 
@@ -1712,18 +1934,18 @@ class Outline {
 
       // Check if the text includes time (format: "Jan 5 14:30" or "Jan 5, 14:30")
       hasTime = /\d{1,2}:\d{2}/.test(dateText);
-
+      
       const currentYear = new Date().getFullYear();
       let parsedDate;
 
       if (hasTime) {
         // Try to parse full date with time
         // Handle formats like "Jan 5 14:30" or "Jan 5, 14:30"
-        const dateWithYear = dateText.includes(currentYear.toString()) ?
-          dateText :
+        const dateWithYear = dateText.includes(currentYear.toString()) ? 
+          dateText : 
           dateText.replace(/(\w{3}\s+\d{1,2}),?\s+/, `$1 ${currentYear} `);
         parsedDate = new Date(dateWithYear);
-
+        
         if (!isNaN(parsedDate.getTime())) {
           initialDate = parsedDate;
         }
@@ -1778,7 +2000,7 @@ class Outline {
     timeIcon.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-
+      
       if (dateInput.type === 'date') {
         // Switch to datetime-local
         const currentDate = dateInput.value;
@@ -1789,7 +2011,7 @@ class Outline {
         }
         timeIcon.textContent = 'Only date';
         timeIcon.title = 'Remove time (date only)';
-
+        
         // Re-add click prevention for the new input type
         dateInput.removeEventListener('click', dateInput._clickHandler);
         dateInput._clickHandler = (e) => e.stopPropagation();
@@ -1803,7 +2025,7 @@ class Outline {
         }
         timeIcon.textContent = 'Add time';
         timeIcon.title = 'Add time';
-
+        
         // Re-add click prevention for the new input type
         dateInput.removeEventListener('click', dateInput._clickHandler);
         dateInput._clickHandler = (e) => e.stopPropagation();
@@ -1839,7 +2061,7 @@ class Outline {
       e.stopPropagation();
       if (dateInput.value) {
         let selectedDate;
-
+        
         if (dateInput.type === 'datetime-local') {
           // Parse datetime-local format: YYYY-MM-DDTHH:MM
           selectedDate = new Date(dateInput.value);
@@ -1849,7 +2071,7 @@ class Outline {
           // Parse date format: YYYY-MM-DD
           selectedDate = new Date(dateInput.value + 'T00:00:00');
         }
-
+        
         if (type === 'due') {
           this.setDueDate(li, selectedDate);
         } else {
@@ -1921,11 +2143,11 @@ class Outline {
         const isDateInput = e.target.matches('input[type="date"]') || e.target.matches('input[type="datetime-local"]');
         const isInOutlineList = e.target.closest('outline-list');
         const isPopupElement = e.target.closest('.outline-popup');
-
+        
         if (isInsidePopup || isDateInput || isInOutlineList || isPopupElement) {
           return;
         }
-
+        
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
@@ -1954,10 +2176,10 @@ class Outline {
     }
 
     // Format with time if time was explicitly set (not default midnight)
-    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) ||
+    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) || 
                    (date._explicitTime === true);
     let timestamp;
-
+    
     if (hasTime) {
       timestamp = date.toLocaleDateString('en-US', {
         month: 'short',
@@ -1973,7 +2195,7 @@ class Outline {
         day: 'numeric'
       });
     }
-
+    
     scheduleSpan.textContent = ` ${timestamp}`;
 
     // Update the hover button to show the data
@@ -2031,10 +2253,10 @@ class Outline {
     }
 
     // Format with time if time was explicitly set (not default midnight)
-    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) ||
+    const hasTime = (date.getHours() !== 0 || date.getMinutes() !== 0) || 
                    (date._explicitTime === true);
     let timestamp;
-
+    
     if (hasTime) {
       timestamp = date.toLocaleDateString('en-US', {
         month: 'short',
@@ -2050,7 +2272,7 @@ class Outline {
         day: 'numeric'
       });
     }
-
+    
     dueSpan.textContent = ` ${timestamp}`;
 
     // Update the hover button to show the data
@@ -2111,7 +2333,8 @@ class Outline {
     noneItem.setAttribute('tabindex', '0');
     if (!currentAssignee) noneItem.classList.add('selected');
 
-    noneItem.addEventListener('click', () => {
+    noneItem.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.removeAssignee(li);
       this.closeAllPopups();
     });
@@ -2133,7 +2356,8 @@ class Outline {
       item.setAttribute('tabindex', '0');
       if (currentAssignee === assignee) item.classList.add('selected');
 
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.setAssignee(li, assignee);
         this.closeAllPopups();
       });
@@ -2160,23 +2384,47 @@ class Outline {
 
     // Close on outside click
     setTimeout(() => {
-      document.addEventListener('click', (e) => {
-        if (!popup.contains(e.target)) {
-          this.closeAllPopups(li);
+      const handleOutsideClick = (e) => {
+        // Don't close if clicking inside the popup, on any popup element, or within the web component
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
         }
-      }, { once: true });
-    }, 0);
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) {
+          return;
+        }
+        
+        // Close popup and remove listener
+        this.closeAllPopups(li);
+        document.removeEventListener('click', handleOutsideClick);
+      };
+
+      document.addEventListener('click', handleOutsideClick);
+      
+      // Store reference to remove listener when popup closes
+      popup._outsideClickHandler = handleOutsideClick;
+    }, 100);
   }
 
   handleDropdownKeydown(e, item, selectCallback, li) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       selectCallback();
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n') || e.key === 'j') {
       e.preventDefault();
       const nextItem = item.nextElementSibling;
       if (nextItem) nextItem.focus();
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p') || e.key === 'k') {
       e.preventDefault();
       const prevItem = item.previousElementSibling;
       if (prevItem) prevItem.focus();
@@ -2303,11 +2551,11 @@ class Outline {
           e.preventDefault();
           checkbox.checked = !checkbox.checked;
           this.toggleTag(li, tag, checkbox.checked);
-        } else if (e.key === 'ArrowDown') {
+        } else if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n') || e.key === 'j') {
           e.preventDefault();
           const nextItem = item.nextElementSibling || input;
           nextItem.focus();
-        } else if (e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p') || e.key === 'k') {
           e.preventDefault();
           const prevItem = item.previousElementSibling;
           if (prevItem && prevItem !== input) {
@@ -2334,10 +2582,14 @@ class Outline {
           // Rebuild popup to include new tag
           setTimeout(() => this.showTagsPopup(li, button), 0);
         }
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n') || e.key === 'j') {
         e.preventDefault();
         const firstItem = popup.querySelector('.tag-item');
         if (firstItem) firstItem.focus();
+      } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p') || e.key === 'k') {
+        e.preventDefault();
+        const lastItem = popup.querySelector('.tag-item:last-child');
+        if (lastItem) lastItem.focus();
       } else if (e.key === 'Escape') {
         this.closeAllPopups(li);
       }
@@ -2352,14 +2604,28 @@ class Outline {
     // Store reference for cleanup
     this.currentPopup = popup;
 
-    // Close on outside click - simplified approach
+    // Close on outside click
     setTimeout(() => {
       const handleOutsideClick = (e) => {
-        // Don't close if clicking inside the popup or within the web component
-        if (popup.contains(e.target) || e.target.closest('outline-list')) {
+        // Don't close if clicking inside the popup, on any popup element, or within the web component
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
+        }
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) {
           return;
         }
-
+        
         // Close popup and remove listener
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
@@ -2466,7 +2732,21 @@ class Outline {
 
     setTimeout(() => {
       const handleOutsideClick = (e) => {
-        if (popup.contains(e.target) || e.target.closest('outline-list')) return;
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
+        }
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) return;
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
@@ -2487,7 +2767,7 @@ class Outline {
 
     const heading = document.createElement('div');
     heading.className = 'heading';
-    heading.textContent = 'Add to private worklog';
+    heading.textContent = 'Add to my worklog';
     popup.appendChild(heading);
 
     const textarea = document.createElement('textarea');
@@ -2569,7 +2849,21 @@ class Outline {
 
     setTimeout(() => {
       const handleOutsideClick = (e) => {
-        if (popup.contains(e.target) || e.target.closest('outline-list')) return;
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
+        }
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) return;
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
@@ -2581,10 +2875,10 @@ class Outline {
 
   addComment(li, commentText) {
     if (!commentText) return;
-
+    
     const textSpan = li.querySelector('.outline-text');
     if (!textSpan) return;
-
+    
     // Create new comment object
     const newComment = {
       id: crypto.randomUUID(),
@@ -2592,7 +2886,7 @@ class Outline {
       author: this.getCurrentUser(),
       timestamp: new Date().toISOString()
     };
-
+    
     li.focus();
     this.emit('outline:comment', {
       id: li.dataset.id,
@@ -2603,10 +2897,10 @@ class Outline {
 
   addWorklogEntry(li, worklogText) {
     if (!worklogText) return;
-
+    
     const textSpan = li.querySelector('.outline-text');
     if (!textSpan) return;
-
+    
     // Create new worklog entry object
     const newEntry = {
       id: crypto.randomUUID(),
@@ -2614,7 +2908,7 @@ class Outline {
       author: this.getCurrentUser(),
       timestamp: new Date().toISOString()
     };
-
+    
     li.focus();
     this.emit('outline:worklog', {
       id: li.dataset.id,
@@ -2690,7 +2984,21 @@ class Outline {
 
     setTimeout(() => {
       const handleOutsideClick = (e) => {
-        if (popup.contains(e.target) || e.target.closest('outline-list')) return;
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
+        }
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) return;
         this.closeAllPopups(li);
         document.removeEventListener('click', handleOutsideClick);
       };
@@ -2874,27 +3182,20 @@ class Outline {
 
       // Handle click
       item.addEventListener('click', () => {
-        this.setTodoStatus(li, option.value);
-        this.closeAllPopups();
+        const success = this.setTodoStatus(li, option.value);
+        if (success) {
+          this.closeAllPopups();
+        }
       });
 
       // Handle keyboard
       item.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          this.setTodoStatus(li, option.value);
-          this.closeAllPopups();
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          const nextItem = item.nextElementSibling;
-          if (nextItem) nextItem.focus();
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          const prevItem = item.previousElementSibling;
-          if (prevItem) prevItem.focus();
-        } else if (e.key === 'Escape') {
-          this.closeAllPopups(li);
-        }
+        this.handleDropdownKeydown(e, item, () => {
+          const success = this.setTodoStatus(li, option.value);
+          if (success) {
+            this.closeAllPopups();
+          }
+        }, li);
       });
 
       popup.appendChild(item);
@@ -2912,17 +3213,47 @@ class Outline {
 
     // Close on outside click
     setTimeout(() => {
-      document.addEventListener('click', (e) => {
-        if (!popup.contains(e.target)) {
-          this.closeAllPopups(li);
+      const handleOutsideClick = (e) => {
+        // Don't close if clicking inside the popup, on any popup element, or within the web component
+        const isInsidePopup = popup.contains(e.target);
+        const isInOutlineList = e.target.closest('outline-list');
+        const isPopupElement = e.target.closest('.outline-popup');
+        
+        // For shadow DOM: check if the actual clicked element (using composedPath) is inside the popup
+        let isInsideShadowPopup = false;
+        if (e.composedPath) {
+          const path = e.composedPath();
+          isInsideShadowPopup = path.some(element => 
+            element.nodeType === Node.ELEMENT_NODE && 
+            (element.classList?.contains('outline-popup') || popup.contains(element))
+          );
         }
-      }, { once: true });
-    }, 0);
+        
+        if (isInsidePopup || isInOutlineList || isPopupElement || isInsideShadowPopup) {
+          return;
+        }
+        
+        // Close popup and remove listener
+        this.closeAllPopups(li);
+        document.removeEventListener('click', handleOutsideClick);
+      };
+
+      document.addEventListener('click', handleOutsideClick);
+      
+      // Store reference to remove listener when popup closes
+      popup._outsideClickHandler = handleOutsideClick;
+    }, 100);
   }
 
   setTodoStatus(li, status) {
     const label = li.querySelector(".outline-label");
-    if (!label) return;
+    if (!label) return false;
+
+    // Check if we can complete this parent
+    if (!this.canCompleteParent(li, status)) {
+      this.showPermissionDeniedFeedback(li, 'complete-with-incomplete-children');
+      return false;
+    }
 
     // Remove existing state classes
     li.classList.remove("completed", "no-label");
@@ -2970,6 +3301,8 @@ class Outline {
       completed: li.classList.contains("completed"),
       hasLabel: !li.classList.contains("no-label")
     });
+    
+    return true;
   }
 
   setTags(li, tags) {
@@ -3109,7 +3442,7 @@ class Outline {
     const ul = document.createElement('ul');
     ul.className = 'outline-list';
     container.appendChild(ul);
-
+    
     // Configure for single item use (disable navigation and add button)
     const constrainedOptions = {
       features: {
@@ -3131,7 +3464,7 @@ class Outline {
       },
       ...options
     };
-
+    
     return new Outline(ul, constrainedOptions);
   }
 
@@ -3140,7 +3473,7 @@ class Outline {
     const ul = document.createElement('ul');
     ul.className = 'outline-list';
     container.appendChild(ul);
-
+    
     // Configure for agenda use (allow some interaction but no navigation)
     const agendaOptions = {
       features: {
@@ -3162,8 +3495,217 @@ class Outline {
       },
       ...options
     };
-
+    
     return new Outline(ul, agendaOptions);
+  }
+
+  // Drag and Drop functionality
+  async initDragAndDrop() {
+    try {
+      // Dynamically load sortable.js if not already loaded
+      if (typeof Sortable === 'undefined') {
+        await this.loadSortableJS();
+      }
+
+      // Drag handles are no longer needed - entire items are draggable
+
+      // Initialize sortable on all lists (main and nested)
+      this.initSortableOnAllLists();
+
+    } catch (error) {
+      console.error('Failed to initialize drag and drop:', error);
+    }
+  }
+
+  initSortableOnAllLists() {
+    // Skip if Sortable is not available
+    if (typeof Sortable === 'undefined') {
+      return;
+    }
+
+    // Store all sortable instances for cleanup
+    this.sortableInstances = this.sortableInstances || [];
+
+    // Find all ul elements (main list and nested sublists)
+    const allLists = [this.el, ...this.el.querySelectorAll('ul')];
+    
+    allLists.forEach(listEl => {
+      // Skip if already initialized
+      if (listEl._sortableInstance) {
+        return;
+      }
+
+      const sortableInstance = Sortable.create(listEl, {
+        group: 'outline-items', // Allow dragging between lists
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        fallbackOnBody: true,
+        swapThreshold: 0.65,
+        onEnd: (evt) => {
+          this.handleHierarchicalDragEnd(evt);
+        },
+        onMove: (evt) => {
+          return this.handleDragMove(evt);
+        }
+      });
+
+      // Store reference for cleanup
+      listEl._sortableInstance = sortableInstance;
+      this.sortableInstances.push(sortableInstance);
+    });
+  }
+
+  async loadSortableJS() {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if (typeof Sortable !== 'undefined') {
+        resolve();
+        return;
+      }
+
+      // Create script element
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load SortableJS'));
+      
+      // Add to document head
+      document.head.appendChild(script);
+    });
+  }
+
+  // Drag handles are no longer needed - entire items are draggable
+
+  handleDragMove(evt) {
+    const { dragged, related, relatedRect, willInsertAfter } = evt;
+    
+    // Allow all moves for now - we'll handle the logic in onEnd
+    return true;
+  }
+
+  handleHierarchicalDragEnd(evt) {
+    const { item, from, to, oldIndex, newIndex } = evt;
+    
+    // Skip if no actual movement
+    if (from === to && oldIndex === newIndex) {
+      return;
+    }
+
+    // Determine the type of move
+    let moveType = 'reorder';
+    let parentId = null;
+    
+    // Check if item moved to a different list (nesting change)
+    if (from !== to) {
+      // Find the parent li of the destination list
+      const parentLi = to.closest('li');
+      if (parentLi) {
+        moveType = 'indent';
+        parentId = parentLi.dataset.id;
+      } else {
+        moveType = 'outdent';
+      }
+    }
+
+    // Update child counts for affected parents
+    this.updateChildCountsAfterMove(from, to);
+
+    // Emit move event with hierarchical information
+    const moveEvent = new CustomEvent('outline:move', {
+      detail: {
+        item: item,
+        oldIndex: oldIndex,
+        newIndex: newIndex,
+        moveType: moveType,
+        parentId: parentId,
+        fromList: from,
+        toList: to,
+        direction: newIndex > oldIndex ? 'down' : 'up'
+      },
+      bubbles: true
+    });
+    
+    this.el.dispatchEvent(moveEvent);
+  }
+
+  updateChildCountsAfterMove(fromList, toList) {
+    // Update child count for the source parent
+    if (fromList && fromList.closest) {
+      const fromParentLi = fromList.closest('li');
+      if (fromParentLi) {
+        this.updateChildCount(fromParentLi);
+        
+        // Remove empty sublists
+        if (fromList.children.length === 0 && fromList !== this.el) {
+          fromParentLi.classList.remove('has-children');
+          fromList.remove();
+        }
+      }
+    }
+
+    // Update child count for the destination parent
+    if (toList && toList.closest) {
+      const toParentLi = toList.closest('li');
+      if (toParentLi) {
+        toParentLi.classList.add('has-children');
+        this.updateChildCount(toParentLi);
+      }
+    }
+  }
+
+  // Clean up drag and drop
+  destroyDragAndDrop() {
+    // Clean up all sortable instances
+    if (this.sortableInstances) {
+      this.sortableInstances.forEach(instance => {
+        instance.destroy();
+      });
+      this.sortableInstances = [];
+    }
+
+    // Clean up old single instance if it exists
+    if (this.sortableInstance) {
+      this.sortableInstance.destroy();
+      this.sortableInstance = null;
+    }
+
+    // Remove sortable instance references from DOM elements
+    [this.el, ...this.el.querySelectorAll('ul')].forEach(listEl => {
+      if (listEl._sortableInstance) {
+        delete listEl._sortableInstance;
+      }
+    });
+
+    // Drag handles are no longer used
+  }
+
+  // Method to reinitialize sortable on new sublists
+  initSortableOnNewSublist(sublist) {
+    if (!this.options.features.dragAndDrop || sublist._sortableInstance || typeof Sortable === 'undefined') {
+      return;
+    }
+
+    const sortableInstance = Sortable.create(sublist, {
+      group: 'outline-items',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      onEnd: (evt) => {
+        this.handleHierarchicalDragEnd(evt);
+      },
+      onMove: (evt) => {
+        return this.handleDragMove(evt);
+      }
+    });
+
+    sublist._sortableInstance = sortableInstance;
+    this.sortableInstances = this.sortableInstances || [];
+    this.sortableInstances.push(sortableInstance);
   }
 }
 
@@ -3347,6 +3889,7 @@ class TaskItemButtons {
     archiveBtn.className = "hover-button archive-button";
     archiveBtn.setAttribute("data-type", "archive");
     archiveBtn.tabIndex = -1;
+    archiveBtn.innerHTML = "a<u>r</u>chive";
     archiveBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!this.outline.isItemEditable(this.li)) {
@@ -3402,7 +3945,7 @@ class TaskItemButtons {
       '.comments-button',
       '.worklog-button'
     ];
-
+    
     desiredOrder.forEach(selector => {
       const btn = container.querySelector(selector);
       if (btn) {
@@ -3418,7 +3961,7 @@ class TaskItem {
     this.li = li;
     this.outline = outlineInstance;
     this.buttonManager = null;
-
+    
     // Initialize if this is a new task item
     if (!li.dataset.taskItemInitialized) {
       this.initialize();
@@ -3428,13 +3971,13 @@ class TaskItem {
   initialize() {
     // Mark as initialized to prevent double initialization
     this.li.dataset.taskItemInitialized = 'true';
-
+    
     // Set up basic properties
     this.li.tabIndex = 0;
-
+    
     // Add hover buttons using our TaskItemButtons helper
     this.addButtons();
-
+    
     // Set up status label click handler
     this.setupStatusLabelHandler();
   }
@@ -3442,15 +3985,15 @@ class TaskItem {
   addButtons() {
     this.buttonManager = new TaskItemButtons(this.outline, this.li, this.outline.options.features);
     const buttonsContainer = this.buttonManager.createButtonsContainer();
-
+    
     if (!buttonsContainer) return; // Buttons already exist
-
+    
     // Insert buttons in the correct position
     this.insertButtonsContainer(buttonsContainer);
-
+    
     // Set up hover behavior
     this.outline.addHoverDelayHandlers(this.li, buttonsContainer);
-
+    
     // Update button states
     this.updateButtons();
   }
@@ -3488,7 +4031,7 @@ class TaskItem {
 
   // Delegate key methods to outline instance for now
   // (In future steps, we can move more logic into this class)
-
+  
   isEditable() {
     return this.outline.isItemEditable(this.li);
   }
@@ -3562,8 +4105,13 @@ class TaskItem {
     li.appendChild(document.createTextNode(" "));
     li.appendChild(textSpan);
 
-    // Return a new TaskItem instance
-    return new TaskItem(li, outlineInstance);
+    // Create TaskItem instance
+    const taskItem = new TaskItem(li, outlineInstance);
+
+    // Drag handles are no longer needed - entire items are draggable
+
+    // Return the TaskItem instance
+    return taskItem;
   }
 }
 
@@ -3767,7 +4315,7 @@ class OutlineElement extends HTMLElement {
     const li = document.createElement('li');
     li.dataset.id = todo.id;
     li.tabIndex = 0;
-
+    
     // Set editable attribute (default to true if not specified)
     li.dataset.editable = todo.editable !== false ? 'true' : 'false';
 
@@ -3803,15 +4351,6 @@ class OutlineElement extends HTMLElement {
     const labelSpan = document.createElement('span');
     labelSpan.className = 'outline-label';
     labelSpan.textContent = todo.status || 'TODO';
-    labelSpan.style.cursor = "pointer";
-    labelSpan.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if(!this.isItemEditable(li)) {
-        this.showPermissionDeniedFeedback(li);
-        return;
-      }
-      this.showStatusPopup(li, labelSpan);
-    });
     if (todo.status === 'none' || todo.noLabel) {
       labelSpan.style.display = 'none';
     }
@@ -3833,7 +4372,7 @@ class OutlineElement extends HTMLElement {
       ).length;
       const countSpan = document.createElement('span');
       countSpan.className = 'child-count';
-      countSpan.textContent = `[${completedCount}/${todo.children.length}]`;
+      Outline.createProgressBar(countSpan, completedCount, todo.children.length);
       li.appendChild(countSpan);
     }
 
@@ -4183,6 +4722,44 @@ class OutlineElement extends HTMLElement {
           }
         }
 
+        /* Drag and Drop / Sortable styles */
+        .sortable-ghost {
+          opacity: 0.4;
+          background: var(--clarity-outline-hover);
+        }
+
+        .sortable-chosen {
+          background: var(--clarity-outline-focus);
+        }
+
+        .sortable-drag {
+          opacity: 0.8;
+          transform: rotate(5deg);
+        }
+
+        /* Drop zone indicators */
+        li.drop-target {
+          background: var(--clarity-outline-focus-highlight, rgba(138, 155, 168, 0.15));
+          border: 2px dashed var(--clarity-outline-border-focus, #8a9ba8);
+          border-radius: 4px;
+        }
+
+        ul.drop-zone {
+          background: var(--clarity-outline-focus-highlight, rgba(138, 155, 168, 0.1));
+          border: 1px dashed var(--clarity-outline-border-focus, #8a9ba8);
+          border-radius: 4px;
+          min-height: 2rem;
+        }
+
+        /* Draggable items styling - only when drag and drop is enabled */
+        :host([data-features*="dragAndDrop"]) li {
+          cursor: move;
+        }
+        
+        :host([data-features*="dragAndDrop"]) li:active {
+          cursor: grabbing;
+        }
+
         /* Label and text inline */
         .outline-label {
           font-weight: bold;
@@ -4200,6 +4777,41 @@ class OutlineElement extends HTMLElement {
           color: var(--clarity-outline-text-muted);
           margin-left: 0.5rem;
           user-select: none;
+        }
+
+        .progress-container {
+          display: inline-block;
+          margin-left: 0.15rem;
+          vertical-align: middle;
+        }
+
+        .progress-bar {
+          width: 40px;
+          height: 12px;
+          background-color: var(--clarity-outline-bg-tertiary);
+          border-radius: 1px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .progress-fill {
+          height: 100%;
+          background-color: var(--clarity-outline-color-done);
+          border-radius: 1px;
+          transition: width 0.2s ease;
+        }
+
+        .progress-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 0.65em;
+          font-weight: 600;
+          text-align: center;
+          user-select: none;
+          white-space: nowrap;
+          pointer-events: none;
         }
 
         /* Schedule and assign indicators */
@@ -4588,16 +5200,16 @@ class OutlineElement extends HTMLElement {
   applyTheme(theme) {
     // Apply theme by setting CSS custom properties on the host element
     const host = this;
-
+    
     // Clear any existing theme overrides
     const themeProperties = [
       '--clarity-outline-bg-primary', '--clarity-outline-bg-secondary', '--clarity-outline-bg-tertiary',
       '--clarity-outline-text-primary', '--clarity-outline-text-secondary', '--clarity-outline-text-muted',
-      '--clarity-outline-border', '--clarity-outline-border-focus', '--clarity-outline-hover',
+      '--clarity-outline-border', '--clarity-outline-border-focus', '--clarity-outline-hover', 
       '--clarity-outline-focus', '--clarity-outline-focus-shadow', '--clarity-outline-focus-highlight',
       '--clarity-outline-input-bg', '--clarity-outline-input-border', '--clarity-outline-popup-bg', '--clarity-outline-popup-shadow'
     ];
-
+    
     if (!theme || theme === 'auto') {
       // Remove theme overrides and let CSS media queries handle it
       themeProperties.forEach(prop => host.style.removeProperty(prop));

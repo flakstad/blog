@@ -41,8 +41,8 @@ The component is designed for keyboard-first interaction.
 
 When an item is focused, actions can be done with a single key press: `E` to
 edit, `S` to change status, `P` to mark priority, `A` to assign, etc. Mouse
-users aren’t left out: hover actions expose the same controls with shortcut
-hints.
+users aren't left out: hover actions expose the same controls with shortcut
+hints, and items can be reordered with drag and drop.
 
 You won’t see rich task descriptions, comment threads or file uploads here; I think those belong on dedicated item pages. This component is the fast, structured backbone you can plug into bigger systems.
 
