@@ -106,6 +106,40 @@ span.subtitle {
   margin-top: 1.5rem;
 }
 
+.post-content pre,
+.post-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.post-content pre,
+.post-content .highlight pre {
+  margin: 1.75rem 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  color: #24211d !important;
+  background: #f3f0e8 !important;
+  border: 1px solid #e1dccf;
+  border-radius: 6px;
+}
+
+.post-content pre code,
+.post-content .highlight pre code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: inherit;
+}
+
+.post-content :not(pre) > code {
+  padding: 0.12em 0.32em;
+  background: #f3f0e8;
+  border: 1px solid #e1dccf;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* Post content links - match header/footer styling */
 .post-content a {
   color: #0077cc;
@@ -208,6 +242,18 @@ nav a:hover {
 
   span.subtitle {
     color: #aaa;
+  }
+
+  .post-content pre,
+  .post-content .highlight pre {
+    color: #ece7dc !important;
+    background: #1b1b1b !important;
+    border-color: #333;
+  }
+
+  .post-content :not(pre) > code {
+    background: #1b1b1b;
+    border-color: #333;
   }
 
   #outline-container-epilogue {
