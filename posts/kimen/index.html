@@ -1,0 +1,55 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Shhh, Don't Put Secrets in the Repo | Andreas Flakstad</title><link rel=stylesheet href=/css/custom.css></head><body><header></header><main><article class=post-single><p class=post-date>May 19, 2026</p><h1 class=post-title>Shhh, Don't Put Secrets in the Repo</h1><div class=post-content><p>Let&rsquo;s talk about app config and secrets.</p><p>Every web app needs a port, URLs, feature flags, API keys, OAuth secrets, maybe
+a service account JSON file, maybe a certificate and key.</p><p>Some values come from environment variables. Some come from local files. Some
+are defaults. Some are fetched from a secret manager. Some need to be written as
+files because the library using them expects a path.</p><p>The common answer I&rsquo;ve been exposed to is to make the app orchestrate all of
+this. Add a config library and teach it where to look.</p><p>Well, that works, but now startup has its own rules. Does the env var override the
+file? Does the local profile override the default? Does the cloud secret replace
+the local one? To understand how the program starts, I have to understand the
+precedence rules inside the app.</p><p>Local development often adds another problem. Developers are expected to keep
+secret files around, remember to not check them in, add them to <code>.gitignore</code>.
+While <code>.gitignore</code> prevents accidental commits, it does not prevent local tools
+from reading the file. And that certainly matters if you play with AI agents.
+When an agent examines the project, ignored files are of course still local
+files it can read. If the secret is sitting in the working tree, the agent can
+see it.</p><p>So is there a better way? Well, here&rsquo;s one way I came up with. Some secret
+managers can do parts of this, but they are usually focused on fetching secrets
+at runtime and require internet access. I wanted something small and dedicated,
+that works offline, and solves problems in my local workflows. So, the source
+code repo should describe what config and secrets it needs, but the repo should
+not contain any secret values. The app should not need to know how to load secrets
+from five different places. And reading secrets should not require internet
+access.</p><p>Introducing <a href=https://github.com/flakstad/kimen>Kimen</a>, a local-first secrets tool. It is
+basically a small vault plus a projection step.</p><p>The vault stores your secrets. The projection step turns vault keys into the
+environment variables and files a process expects, just before that process
+starts.</p><p>Let&rsquo;s start with one secret which we&rsquo;ll call <code>prod.database_url</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen secret set prod.database_url
+</span></span></code></pre></div><p>That call prompts for you to type out the secret safely in the terminal, without putting it in shell history,
+an env var, or a text file on disk.</p><p>Then later we project that secret into the environment of your program:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen run --env DATABASE_URL<span style=color:#f92672>=</span>prod.database_url -- ./your-app
+</span></span></code></pre></div><p>The app sees <code>DATABASE_URL</code> like any other environment variable. It does not
+call Kimen or know about the vault.</p><p>If we have many secrets to project a good approach is to add a profile to the
+repo; a small config file with placeholders for secrets. The left side of the
+following is what the app will see. The right side is what Kimen will retrieve
+from the vault.</p><p>So let&rsquo;s create a file in the repo at <code>.kimen/profiles/prod.kmap</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>env DATABASE_URL=prod.database_url
+</span></span><span style=display:flex><span>env SERVICE_API_TOKEN=prod.service_api_token
+</span></span><span style=display:flex><span>env PORT=const:5050
+</span></span><span style=display:flex><span>file credentials.json=prod.gcp_credentials_json
+</span></span><span style=display:flex><span>envpath GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+</span></span></code></pre></div><p><code>file</code> here renders a secret to a runtime file. <code>envpath</code> sets an environment
+variable to the path of that rendered file. <code>const:5050</code> is the syntax for
+declaring a config constant in the profile that should not be replaced by a
+secret value.</p><p>The names on the right in the profile are not secret values. They are keys in
+the vault. This profile can be checked in safely because it only describes the runtime
+shape.</p><p>Then, when I start the program, Kimen hydrates that profile for this one run:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen run --profile prod -- ./your-app
+</span></span></code></pre></div><p>Kimen resolves <code>prod</code> to the <code>prod.kmap</code> file, reads the mappings, fetches the
+referenced vault values, sets <code>DATABASE_URL</code>, <code>SERVICE_API_TOKEN</code>, and <code>PORT</code>,
+renders <code>credentials.json</code> into a temporary runtime directory, and sets
+<code>GOOGLE_APPLICATION_CREDENTIALS</code> to that file path.</p><p>The app still does not call Kimen. It just reads from the standard environment.</p><p>For deploys to my VPS services, I use the same profiles to render envfiles before uploading them to
+the server. Kimen runs locally; the server only receives the rendered envfiles.
+This can also be done in a CI pipeline.</p><p>For local development, I typically use a dev profile to start the REPL:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen run --profile dev -- clojure ...
+</span></span></code></pre></div><p>Each invocation of <code>kimen</code> that accesses the vault requires a passphrase. If I
+plan to run several of these within a short timeframe it can be nice to unlock
+the vault only once:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen session start --ttl 15m
+</span></span></code></pre></div><p>That gives trusted same-user tools a bounded window to use the vault without
+asking for the passphrase again. Then I can lock it when I am done, or let the
+timeframe expire:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>kimen session lock
+</span></span></code></pre></div><p>The important boundary is still before the app starts, not inside the app.</p><p>Source code: <a href=https://github.com/flakstad/kimen>github.com/flakstad/kimen</a></p></div><footer class=custom-footer><p>Andreas Flakstad</p><p><a href=/>Posts</a> ·
+<a href=mailto:hey@andreasflakstad.no>Email</a></p></footer></article></main></body></html>

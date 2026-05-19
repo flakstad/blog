@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Andreas Flakstad</title><link>https://andreasflakstad.no/</link><description>Recent content on Andreas Flakstad</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Tue, 19 May 2026 14:35:00 +0200</lastBuildDate><atom:link href="https://andreasflakstad.no/index.xml" rel="self" type="application/rss+xml"/><item><title>Shhh, Don't Put Secrets in the Repo</title><link>https://andreasflakstad.no/posts/kimen/</link><pubDate>Tue, 19 May 2026 14:35:00 +0200</pubDate><guid>https://andreasflakstad.no/posts/kimen/</guid><description>&lt;p&gt;Let&amp;rsquo;s talk about app config and secrets.&lt;/p&gt;
+&lt;p&gt;Every web app needs a port, URLs, feature flags, API keys, OAuth secrets, maybe
+a service account JSON file, maybe a certificate and key.&lt;/p&gt;
+&lt;p&gt;Some values come from environment variables. Some come from local files. Some
+are defaults. Some are fetched from a secret manager. Some need to be written as
+files because the library using them expects a path.&lt;/p&gt;
+&lt;p&gt;The common answer I&amp;rsquo;ve been exposed to is to make the app orchestrate all of
+this. Add a config library and teach it where to look.&lt;/p&gt;
+&lt;p&gt;Well, that works, but now startup has its own rules. Does the env var override the
+file? Does the local profile override the default? Does the cloud secret replace
+the local one? To understand how the program starts, I have to understand the
+precedence rules inside the app.&lt;/p&gt;</description></item><item><title>From 308MB to 41MB: shrinking a GraalVM native image</title><link>https://andreasflakstad.no/posts/native-image-308m-to-41m/</link><pubDate>Fri, 20 Feb 2026 15:00:00 +0100</pubDate><guid>https://andreasflakstad.no/posts/native-image-308m-to-41m/</guid><description>&lt;p&gt;A short, practical recipe for getting smaller Clojure native binaries with
+GraalVM &lt;code&gt;native-image&lt;/code&gt;. Prompted by ongoing work building &lt;code&gt;Ro&lt;/code&gt;, a local-first work system
+with web, CLI and TUI interfaces.&lt;/p&gt;
+&lt;p&gt;These are the biggest levers I found doing this work initially. There are many
+other config flags and approaches to take to bring this down further, and I will
+likely explore them more as the project matures.&lt;/p&gt;
+&lt;p&gt;Baseline observation building a native image of the project on macOS:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;ls -lh ~/.local/bin/ro
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# -rwxr-xr-x ... 308M ... ~/.local/bin/ro&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Goal: reduce size without breaking runtime behavior.&lt;/p&gt;</description></item><item><title>Keyboard-First Outlining</title><link>https://andreasflakstad.no/posts/keyboard-first-outlining/</link><pubDate>Mon, 01 Sep 2025 10:00:00 +0200</pubDate><guid>https://andreasflakstad.no/posts/keyboard-first-outlining/</guid><description>&lt;p&gt;For as long as I’ve had to manage projects, I’ve disliked the tools built for
+the job. Notion, Asana, Trello, Jira, ..all powerful, but also bloated,
+complicated, and designed around the mouse. Basecamp is a nice breath of fresh
+air with it&amp;rsquo;s relative simplicity and focus on communication, but still falls
+short of the fluid keyboard-driven workflow I’ve always wanted.&lt;/p&gt;
+&lt;p&gt;Meanwhile, I kept coming back to my old favorite: Emacs org-mode. Org has
+everything I love: hierarchical outlines, flexible todos, notes, deadlines, and
+lightning-fast keyboard navigation. The problem is, it’s not built for teams.
+Nobody else can easily see your progress. You end up either isolated in your org
+files or forced back into the big, bloated tools.&lt;/p&gt;
+&lt;p&gt;What I really want is simple: the speed and focus of org-mode combined with the
+visibility and integration of a web app. None of the existing tools strike this
+balance, so I’ve started building my own. The long-term vision is a complete
+project management tool shaped by these principles, but the first step is
+modest: an outline component for the web, inspired by org-mode.&lt;/p&gt;</description></item><item><title>The Creator’s Oath</title><link>https://andreasflakstad.no/posts/creatorsoath/</link><pubDate>Wed, 20 Aug 2025 20:00:00 +0200</pubDate><guid>https://andreasflakstad.no/posts/creatorsoath/</guid><description>&lt;p&gt;&lt;em&gt;A manifesto for principled software builders who honor craft, integrity, and the user’s freedom.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;This is a manifesto for creators who refuse to build noise. It is an
+oath to create only what is worthy. For ourselves. For those who value
+their time. For a world that deserves better tools. To build software
+that empower users, respect their freedom, and endures beyond fleeting
+trends.&lt;/p&gt;</description></item></channel></rss>
