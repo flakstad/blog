@@ -34,27 +34,29 @@ files it can read. If the secret is sitting in the working tree, the agent can
 see it.
 
 So is there a better way? Well, here's one way I came up with. Some secret
-managers can do parts of this, including tools like the 1Password CLI. I wanted
-something smaller, offline, and shaped exactly around my local workflow. The
-source code repo can describe what the runtime needs, but the repo should not
-contain any secret values. The app should not need to know how to load secrets
-from five places. And reading secrets should not require internet access.
+managers can do parts of this, but they are usually focused on fetching secrets
+at runtime and require internet access. I wanted something small and dedicated,
+that works offline, and solves problems in my local workflows. So, the source
+code repo should describe what config and secrets it needs, but the repo should
+not contain any secret values. The app should not need to know how to load secrets
+from five different places. And reading secrets should not require internet
+access.
 
-[Kimen](https://github.com/flakstad/kimen) is a local-first secrets tool. It is
+Introducing [Kimen](https://github.com/flakstad/kimen), a local-first secrets tool. It is
 basically a small vault plus a projection step.
 
-The vault stores the secrets, the real values. The projection step turns vault
-keys into the environment variables and files a process expects, just before
-that process starts.
+The vault stores your secrets. The projection step turns vault keys into the
+environment variables and files a process expects, just before that process
+starts.
 
-Let's start with one secret which we'll call prod.database_url:
+Let's start with one secret which we'll call `prod.database_url`:
 
 ```bash
 kimen secret set prod.database_url
 ```
 
-That call prompts for you to type out the secret in the terminal, without putting it in shell history,
-an env var, or a repo file.
+That call prompts for you to type out the secret safely in the terminal, without putting it in shell history,
+an env var, or a text file on disk.
 
 Then later we project that secret into the environment of your program:
 
@@ -81,10 +83,12 @@ envpath GOOGLE_APPLICATION_CREDENTIALS=credentials.json
 ```
 
 `file` here renders a secret to a runtime file. `envpath` sets an environment
-variable to the path of that rendered file.
+variable to the path of that rendered file. `const:5050` is the syntax for
+declaring a config constant in the profile that should not be replaced by a
+secret value.
 
 The names on the right in the profile are not secret values. They are keys in
-the vault. The profile can be checked in because it only describes the runtime
+the vault. This profile can be checked in safely because it only describes the runtime
 shape.
 
 Then, when I start the program, Kimen hydrates that profile for this one run:
@@ -98,20 +102,17 @@ referenced vault values, sets `DATABASE_URL`, `SERVICE_API_TOKEN`, and `PORT`,
 renders `credentials.json` into a temporary runtime directory, and sets
 `GOOGLE_APPLICATION_CREDENTIALS` to that file path.
 
-The app still does not call Kimen. It just reads from the standard environment,
-and if needed normal files, when it starts.
+The app still does not call Kimen. It just reads from the standard environment.
 
-For deploys, I use the same profiles to render envfiles before uploading them to
+For deploys to my VPS services, I use the same profiles to render envfiles before uploading them to
 the server. Kimen runs locally; the server only receives the rendered envfiles.
+This can also be done in a CI pipeline.
 
-For local development, I use a dev profile to start the REPL:
+For local development, I typically use a dev profile to start the REPL:
 
 ```bash
 kimen run --profile dev -- clojure ...
 ```
-
-The same works for scripts that need API keys. Validate the profile, run
-`kimen doctor`, and start the script inside the hydrated environment.
 
 Each invocation of `kimen` that accesses the vault requires a passphrase. If I
 plan to run several of these within a short timeframe it can be nice to unlock
