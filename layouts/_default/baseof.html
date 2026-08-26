@@ -3,7 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ if .Title }}{{ .Title }} | {{ end }}{{ .Site.Title }}</title>
+  {{- $description := .Description -}}
+  {{- if and (not $description) (eq .Section "posts") -}}
+    {{- $description = .Summary | plainify | htmlUnescape | truncate 180 -}}
+  {{- end -}}
+  {{- $description = $description | default .Site.Params.description -}}
+  <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ $description }}">
+  <link rel="canonical" href="{{ .Permalink }}">
+  <meta property="og:type" content="{{ if eq .Section "posts" }}article{{ else }}website{{ end }}">
+  <meta property="og:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }}{{ end }}">
+  <meta property="og:description" content="{{ $description }}">
+  <meta property="og:url" content="{{ .Permalink }}">
   <link rel="stylesheet" href="/css/custom.css">
 </head>
 <body>

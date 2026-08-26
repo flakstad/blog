@@ -1,6 +1,8 @@
 baseURL = "https://andreasflakstad.no/"
 languageCode = "en-us"
+defaultContentLanguage = "en"
 title = "Andreas Flakstad"
+enableRobotsTXT = true
 
 # Pagination (new syntax in Hugo v0.128+)
 [pagination]
@@ -15,6 +17,7 @@ title = "Andreas Flakstad"
 [params]
   # General
   author = "Andreas Flakstad"
+  description = "Andreas Flakstad is a senior product engineer who builds difficult software products, consults with software companies, and writes about technology."
   defaultTheme = "auto"
   customCSS = ["css/custom.css"]
 

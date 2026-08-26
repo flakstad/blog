@@ -1,6 +1,6 @@
 ---
 date: 2026-02-20T15:00:00+01:00
-draft: false
+draft: true
 params:
     author: Andreas Flakstad
 title: "From 308MB to 41MB: shrinking a GraalVM native image"
