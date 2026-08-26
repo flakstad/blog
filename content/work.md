@@ -8,37 +8,37 @@ description: "Selected product-engineering work by Andreas Flakstad across Breyt
 
 ## Breyta
 
-I joined Breyta as its first employee and later became one of two lead engineers. Over roughly four and a half years, I worked across product development, frontend, backend, architecture, infrastructure, integrations and developer tooling. Breyta went through four substantially different product generations during that time, with broad engineering responsibility in a small team.
+I joined Breyta as its first employee and later became one of two lead engineers. Over roughly four and a half years, I worked across product, frontend, backend, architecture, infrastructure, integrations and developer tooling. During that time we built four substantially different product generations in a small team.
 
 ### Product-data CRM and Data Activation
 
-The original product explored a product-data-first CRM for product-led companies. Instead of treating usage as secondary context to sales records, it made product events first-class data in how commercial teams understood accounts. I worked across CRM and product-data modelling, custom table views, visual queries, reporting, kanban workflows, scoring, enrichment and Signals: derived indicators based on product behavior and custom queries.
+The first product was a product-data-first CRM for product-led companies. Product usage was first-class customer data, not a secondary note beside sales records. I worked on the data model, custom table views, visual queries, reports, kanban workflows, scoring, enrichment and Signals: indicators derived from product behavior and custom queries.
 
-The product later moved from replacing the CRM toward Data Activation beside it: product data from systems such as PostHog or Segment became scores, signals and query results synchronized into the customer’s existing CRM. The shift exposed a real tradeoff between controlling the system of record and making a new capability easier to adopt beside an incumbent. My work centered on the product capabilities and workflows around this model; the core data-sync engine was owned elsewhere.
+We later moved from replacing the CRM to Data Activation beside it. Product data from PostHog or Segment became scores, signals and query results in the customer’s existing CRM. Replacing the system of record gave us more control. Integrating with it made the product easier to adopt. I worked mainly on the product model and workflows around this system. The core data-sync engine was not my main area.
 
 ### AI qualitative research
 
-The next product helped researchers analyse interview video and transcripts. This was early in the current LLM wave, when it was uncertain whether frontier models could perform high-quality qualitative analysis reliably enough to support a product. I was central to making the analysis useful, grounded and dependable. Generated claims and themes linked back to the relevant transcript material, so evidence and citations were part of the architecture and trust model rather than decoration added afterwards.
+The next product helped researchers analyse interview video and transcripts. This was early in the current LLM wave. We did not yet know whether frontier models could produce useful, reliable qualitative analysis. I was central to making the results grounded and dependable. Every generated claim or theme could link back to its supporting transcript evidence.
 
-The surrounding product combined video upload and streaming, editable transcripts, timestamp and playback state, automatic scrolling and highlighting, and navigation from generated analysis to the relevant source moment. It was AI product work and complex frontend engineering at the same time.
+The product combined video upload and streaming, editable transcripts, playback state, timestamps, automatic scrolling and highlighting. A researcher could move from a generated claim to the exact supporting point in the transcript and recording. This required complex frontend work as well as AI engineering.
 
-We used the then-standard embedding and vector-RAG pattern extensively, but for some research tasks an LLM agent formulating searches against Elasticsearch produced better retrieval behavior. It was a useful reminder to measure product behavior rather than keep a fashionable abstraction when conventional search worked better. I was the main owner of AI chat through this and the next two product generations, including its context, retrieval, streaming interaction and tool behavior.
+We used embeddings and vector RAG extensively. For some research tasks, however, an LLM agent that formulated searches against Elasticsearch found better evidence. This was not a universal result. It was a reason to test the fashionable approach against what worked for the product. I was the main owner of AI chat through this and the next two generations, including context, retrieval, streaming and tool behavior.
 
 ### Continuous AI research
 
-That technology later broadened into continuous research over user-provided material and the web. Users could maintain a knowledge base, talk with it through AI chat and receive recurring research reports, including by email—monitoring subjects they cared about but could not continuously consume themselves. I worked significantly on chat, web-search infrastructure, report generation and delivery while helping simplify and repackage the earlier capabilities.
+The third product expanded this work beyond user research. Users could combine their own material with web research, talk with the knowledge base through AI chat, and receive recurring reports by email. I worked on chat, web-search infrastructure, report generation and delivery, while simplifying and reusing parts of the previous product.
 
-This work also led me to question a common agent design. Exposing 20–30 or more tools creates schema and context overhead, consumes tokens and still limits composition. I experimented instead with a sandboxed Clojure environment where the agent could write small programs and compose operations itself. Clojure was an implementation choice; the important idea was code execution as a general computational interface, rather than anticipating every action as another tool. This early direction in our agent work helped shape Breyta’s next generation.
+As the agent gained 20–30 or more tools, their schemas consumed more context and tokens. The tools also remained awkward to combine. Instead of adding another tool for every operation, I experimented with letting the agent write small Clojure programs in a sandbox and combine simpler building blocks itself. The language was an implementation choice. Code execution was the general agent interface. This idea led into the next product.
 
 ### Agent-first workflow platform
 
-The product question for the final generation was: what should a workflow and application platform look like if AI agents are first-class programmers? The problem space resembled conventional workflow tools, but the initial model let people use an existing agent such as Codex or Claude Code to operate Breyta through the CLI I created. It was an agent-facing product interface, not merely developer convenience.
+The question behind the final generation was: what should a workflow platform look like if AI agents are first-class programmers? At first, users brought an existing agent such as Codex or Claude Code and let it operate Breyta through the CLI I created. The CLI was part of the product interface, not just developer tooling.
 
-Workflows were expressed through Clojure and EDN and executed with SCI, a sandboxed Clojure interpreter. Code gave agents a compact way to compose logic, while a constrained declarative or JSON representation can be easier to inspect, validate and edit visually. The interesting question was whether the representation should change when an AI agent is the programmer. I do not think the answer is automatically code for every workflow.
+Workflows used Clojure and EDN and ran inside SCI, a sandboxed Clojure interpreter. Code let agents express and combine logic compactly. Declarative or JSON definitions can be easier to inspect, validate and edit visually. It remains an open question whether code is always the better representation when an agent is the programmer.
 
-The later first-party web chat ran Codex in an isolated environment and put the web experience around it, reusing and dogfooding the same CLI exposed externally. My contribution centered on the web application, AI chat, CLI and surrounding product integration. The workflow runtime itself sat outside my main area of ownership.
+The later web chat ran Codex in an isolated environment and wrapped a web interface around it. It reused the same CLI that external agents used. I mainly built the web application, AI chat, CLI and the code connecting these parts. The workflow runtime was outside my main area of ownership.
 
-The platform also expanded toward reusable apps and a marketplace. Agents should not regenerate every solution from scratch: they could discover a known-working workflow, copy it and adjust it to a new context, while users could potentially publish and sell reusable apps. The aim was to make reuse cheaper as well as creation, though the right boundary between generated code, reusable components and declarative structure remained open.
+The platform also expanded toward reusable apps and a marketplace. An agent should not generate every solution from scratch. It could find a working workflow, copy it and adjust it to a new context. Users could potentially publish and sell those workflows and apps. The open question was how generated code, reusable components and declarative structure should fit together.
 
 <blockquote class="testimonial">
   <p>“Andreas is an unusually strong full-stack product engineer. He combines technical depth with excellent product judgment and a strong instinct for how complex systems should work for users.”</p>
@@ -47,20 +47,20 @@ The platform also expanded toward reusable apps and a marketplace. Agents should
 
 ## Kari
 
-Kari is an AI receptionist I built for Norwegian businesses and the source of roughly a year of production voice-AI experience. Building it end to end has spanned product decisions, realtime model behavior, telephony, backend systems, integrations, deployment and operational workflows.
+Kari is an AI receptionist I built for Norwegian businesses. Building it end to end has given me roughly a year of production voice-AI experience across product decisions, realtime model behavior, telephony, backend systems, integrations, deployment and operations.
 
-A convincing voice demo is easy to assemble. Real callers turn it into a much larger state and reliability problem: audio quality varies, people interrupt or go silent, dialects and languages change, and requests are ambiguous. Many important failure modes only became visible through real calls.
+A convincing voice demo is easy to assemble. Real callers create a much larger state and reliability problem. Audio quality varies. People interrupt, talk over the agent or go silent. Dialects and languages change, and requests are often ambiguous. Many failures only appeared in real calls.
 
-Prompts are necessary, but insufficient. Reliable operation has required explicit conversational modes, purpose-built tools, deterministic logic alongside the model, deliberate formatting of dates and other spoken values, sidecar handling of sensitive input such as Norwegian national identity numbers, audio checks, stall detection and nudging, operational monitoring, and robust state around tool calls. Edge cases from real calls become explicit behavior and checks.
+Prompts are necessary, but not enough. Reliable calls require explicit modes and state, purpose-built tools, and deterministic code around decisions the model should not improvise. Dates are formatted before the model reads them aloud. Sensitive input such as Norwegian national identity numbers is handled separately. Audio checks, stall detection, nudging and careful tool state keep the conversation moving. Edge cases from real calls become new behavior and checks.
 
-Appointment booking, changes and cancellations make the distinction especially clear, including in healthcare-related use cases. The conversation cannot merely sound plausible; intent, identity, dates and availability must become correct operational state transitions. The apparent problem is open-ended conversation. The production problem is making that input drive bounded, reliable operations.
+Appointment booking, changes and cancellations make the distinction clear, especially in healthcare-related use cases. The conversation cannot merely sound plausible. Intent, identity, dates and availability must lead to the correct action. The apparent problem is open-ended conversation. The production problem is making that input drive bounded, reliable operations.
 
 ## DNV Research
 
-For roughly three years I worked in DNV’s research organisation on web products around FMU-based co-simulation, including Simulation Trust Center and some work related to Open Simulation Platform. My responsibility was mainly the applications surrounding the simulation technology, not the core simulation engine. The work sat at the boundary between complex industrial simulation technology and applications people could use.
+For roughly three years I worked in DNV Research on web products around FMU-based co-simulation, including Simulation Trust Center and some work related to Open Simulation Platform. I mainly built applications around the simulation technology, not the core engine. Much of the job was turning complex research technology into software people could use.
 
 ## Mobile banking at EVRY
 
-My first job after university was roughly three years building and operating 23 iOS mobile banking applications with more than 200,000 users in aggregate. A little over a year after joining, I became System Manager for iOS Mobile Banking, with technical and system responsibility rather than personnel management. I worked across iOS development, operations and production releases. It gave me unusually early responsibility for software with real users and little tolerance for careless releases.
+My first job after university was roughly three years building and operating 23 iOS mobile-banking applications with more than 200,000 users in total. I worked on iOS development, DevOps and production releases. A little over a year after joining, I became System Manager for iOS Mobile Banking. This was technical responsibility, not people management. It gave me early responsibility for software where reliability and careful releases mattered.
 
 <p class="page-actions"><a href="/consulting/">Work with me →</a></p>
