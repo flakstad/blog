@@ -6,13 +6,15 @@ lede: "I build products for real use and smaller technical tools that explore ho
 description: "Independent products and open-source software by Andreas Flakstad, including Kari, Ro, Kvist, VevDB, Kimen, Olive, pbt, and statecharts."
 ---
 
-## Kari
+## Products
+
+### Kari
 
 Kari is an AI receptionist for Norwegian businesses. It answers real phone calls and handles useful work such as appointment booking, changes and cancellations. Building it has involved the less visible parts of production voice AI: conversational state, robust tool use, audio and silence monitoring, structured data, and careful handling of operational failure modes.
 
 [heikari.no](https://heikari.no/)
 
-## Ro
+### Ro
 
 Ro is a native, local-first system for work and attention. Its general model is built around collections and items, with an outline as the primary working view and more focused surfaces for agendas and things that need attention.
 
@@ -20,7 +22,9 @@ The portable product engine is written mainly in Kvist, VevDB is the canonical d
 
 [Original idea and interactive outline demo](/posts/keyboard-first-outlining/)
 
-## Kvist
+## Tools and technology
+
+### Kvist
 
 Kvist is a practical Lisp for systems programming. It combines expression-oriented, Clojure-inspired syntax and macros with static types, explicit ownership and direct memory management. It transpiles to readable Odin and uses Odin to build native programs, without adding a virtual machine, garbage collector or lazy-sequence runtime.
 
@@ -28,15 +32,13 @@ Ordinary values remain concrete and native. Kvist also has an explicit immutable
 
 [Source code and documentation](https://github.com/kvist-lang/kvist)
 
-## VevDB
+### VevDB
 
 VevDB is a native, embedded Datalog database built around immutable database values. It brings Datomic-style facts, transactions, queries, pull expressions, history and snapshots into an in-process library that can run in memory or durably using bundled SQLite.
 
 Applications work with VevDB’s data model and indexes rather than managing SQL schemas. The engine is written in Kvist and compiles through Odin to a native library. Clojure and Kvist are the primary APIs, backed by a C ABI and additional language integrations.
 
 [Source code and documentation](https://github.com/vevdb/vev)
-
-## Other tools
 
 ### Kimen
 

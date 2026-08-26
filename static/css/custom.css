@@ -173,6 +173,17 @@ span.subtitle {
   font-size: 1.4em;
 }
 
+.professional-intro {
+  max-width: 650px;
+  margin: 2rem auto 0;
+  font-size: 1.05em;
+  line-height: 1.7;
+}
+
+.professional-intro p {
+  margin: 0.45rem 0;
+}
+
 .custom-header a,
 .custom-footer a {
   color: #0077cc;
