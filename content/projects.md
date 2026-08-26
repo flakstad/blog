@@ -10,7 +10,7 @@ description: "Independent products and open-source software by Andreas Flakstad,
 
 ### Kari
 
-Kari is an AI receptionist for Norwegian businesses. It answers real calls and handles appointment booking, changes and cancellations. Building it has required conversational state, reliable tool use, audio and silence checks, structured data handling, and careful recovery from failures.
+Kari is an AI receptionist for Norwegian businesses. I have been building and operating it since March 2025, and it keeps evolving as real callers expose new edge cases. It handles appointment booking, changes and cancellations, including healthcare work in collaboration with Legelisten.no.
 
 [heikari.no](https://heikari.no/)
 
@@ -54,13 +54,13 @@ Olive brings a live-development workflow to Odin. It can rebuild and load change
 
 ### pbt
 
-`pbt` is a property-based testing library for Odin with deterministic replay and shrinking. It supports ordinary properties, stateful models, CLI programs, HTTP services and external runners.
+`pbt` is a property-based testing library for Odin with deterministic replay and shrinking. It supports ordinary properties, stateful model tests, CLI programs, HTTP services and external runners.
 
 [Source code](https://github.com/flakstad/pbt)
 
 ### statecharts
 
-`statecharts` is a deterministic Harel-style statechart implementation for Odin. It supports nested and parallel states, history, delayed events, run-to-completion processing, snapshots, and diagram export, with a small Kvist authoring layer over the same runtime.
+`statecharts` is a deterministic Harel-style statechart implementation for Odin. It makes complex stateful behavior explicit through nested and parallel states, history, delayed events, run-to-completion processing and snapshots. It also includes diagram export and a small Kvist authoring layer over the same runtime.
 
 [Source code](https://github.com/flakstad/statecharts)
 

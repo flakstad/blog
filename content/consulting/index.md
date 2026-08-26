@@ -25,13 +25,17 @@ I have deep recent experience building LLM and agent products for production. Th
 
 A convincing voice-agent demo is easy to build. A reliable production system is much harder. Real callers vary in dialect, language, audio quality and behavior. They interrupt, talk over the agent, go silent and make ambiguous requests. Tool failures add more ways for the conversation to get stuck.
 
-Through roughly a year building Kari, I learned that prompts are necessary but not enough. Reliability required explicit conversational modes and state, purpose-built tools, and deterministic code around operations the model should not improvise. Dates and other values are formatted before the model reads them aloud. Sensitive structured input, including Norwegian national identity numbers, is handled separately. Audio checks, stall detection, nudging and careful tool state help keep calls moving.
+I have been building and operating Kari since March 2025. It keeps evolving as new customers and callers expose cases that were hard to predict beforehand. Prompts are necessary but not enough. Reliability has required explicit conversational modes and state, purpose-built tools, and deterministic code around operations the model should not improvise. Dates and other values are formatted before the model reads them aloud. Sensitive structured input, including Norwegian national identity numbers, is handled separately. Audio checks, stall detection, nudging and careful tool state help keep calls moving.
 
-Appointment booking, changes and cancellations make the risk concrete. In healthcare-related use cases, the system must handle identity, dates, availability and actions correctly, not merely sound plausible. I’m available for serious production voice-AI work where this experience is useful, but voice is not my only consulting focus.
+Appointment booking, changes and cancellations make the risk concrete. Through collaboration with Legelisten.no, Kari is also being developed for healthcare workflows. The system must handle identity, dates, availability and actions correctly, not merely sound plausible. I’m available for serious production voice-AI work where this experience is useful, but voice is not my only consulting focus.
 
 ## Correctness and testing
 
-I also care about testing beyond ordinary example-based suites. For the right systems I use property-based, generative, stateful and differential testing to find edge cases and check behavior that is hard to cover by hand. These techniques are especially useful for critical stateful systems, rewrites, migrations and large or unpredictable input spaces.
+I think about testability while choosing the architecture, not only after the code is written. Where it fits, I use a Functional Core / Imperative Shell style: important domain behavior stays in a deterministic core, while the shell handles I/O, networks, persistence and other side effects.
+
+I prefer tests that exercise real system behavior. Unit tests are useful, but I rely heavily on integration tests because many failures happen between components. For large input or state spaces, I also use property-based, generative and stateful testing to check invariants that hand-picked examples miss. Differential tests are useful when a rewrite or migration can be compared with an existing implementation.
+
+AI systems need another layer because the model is part of the production behavior. For Kari I developed **scenario tests** defined as data in a small DSL. They replay conversations through the real production path against the actual models, prompts, tools and orchestration. These tests are slower and more expensive, so they run periodically or after relevant changes rather than on every edit. They catch model regressions that deterministic tests cannot, such as a small prompt change breaking an unrelated behavior.
 
 ## How I work
 

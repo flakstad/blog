@@ -47,13 +47,15 @@ The platform also expanded toward reusable apps and a marketplace. An agent shou
 
 ## Kari
 
-Kari is an AI receptionist I built for Norwegian businesses. Building it end to end has given me roughly a year of production voice-AI experience across product decisions, realtime model behavior, telephony, backend systems, integrations, deployment and operations.
+Kari is an AI receptionist for Norwegian businesses. I have been building and operating it since March 2025. The work spans product decisions, realtime model behavior, telephony, backend systems, integrations, deployment and operations.
 
-A convincing voice demo is easy to assemble. Real callers create a much larger state and reliability problem. Audio quality varies. People interrupt, talk over the agent or go silent. Dialects and languages change, and requests are often ambiguous. Many failures only appeared in real calls.
+A convincing voice demo is easy to assemble. Real callers create a much larger state and reliability problem. Audio quality varies. People interrupt, talk over the agent or go silent. Dialects and languages change, and requests are often ambiguous. New customers and callers continue to expose failures that were hard to predict in advance.
 
-Prompts are necessary, but not enough. Reliable calls require explicit modes and state, purpose-built tools, and deterministic code around decisions the model should not improvise. Dates are formatted before the model reads them aloud. Sensitive input such as Norwegian national identity numbers is handled separately. Audio checks, stall detection, nudging and careful tool state keep the conversation moving. Edge cases from real calls become new behavior and checks.
+Prompts are necessary, but not enough. Reliable calls require explicit modes and state, purpose-built tools, and deterministic code around decisions the model should not improvise. Dates are formatted before the model reads them aloud. Sensitive input such as Norwegian national identity numbers is handled separately. Audio checks, stall detection, nudging and careful tool state keep the conversation moving.
 
-Appointment booking, changes and cancellations make the distinction clear, especially in healthcare-related use cases. The conversation cannot merely sound plausible. Intent, identity, dates and availability must lead to the correct action. The apparent problem is open-ended conversation. The production problem is making that input drive bounded, reliable operations.
+Important failures also become **scenario tests**: conversations defined as data and replayed through the real production path against the actual models. They are too slow and expensive to run constantly, but they let me replay a growing set of real cases and catch regressions when prompts, models or orchestration change.
+
+Appointment booking, changes and cancellations make the distinction clear. I also work with Legelisten.no on uses of Kari in the healthcare sector. The conversation cannot merely sound plausible. Intent, identity, dates and availability must lead to the correct action. The apparent problem is open-ended conversation. The production problem is making that input drive bounded, reliable operations.
 
 ## DNV Research
 
