@@ -10,7 +10,7 @@ description: "Independent products and open-source software by Andreas Flakstad,
 
 ### Kari
 
-Kari is an AI receptionist for Norwegian businesses. I have been building and operating it since March 2025, and it keeps evolving as real callers expose new edge cases. It handles appointment booking, changes and cancellations, including healthcare work in collaboration with Legelisten.no.
+Kari is an AI receptionist for Norwegian businesses. I have been building and operating it since March 2025, and it keeps evolving as real callers expose new edge cases. It handles appointment booking, changes and cancellations. I also work with Legelisten.no on using Kari in healthcare.
 
 [heikari.no](https://heikari.no/)
 

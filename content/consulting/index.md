@@ -27,7 +27,7 @@ A convincing voice-agent demo is easy to build. A reliable production system is 
 
 I have been building and operating Kari since March 2025. It keeps evolving as new customers and callers expose cases that were hard to predict beforehand. Prompts are necessary but not enough. Reliability has required explicit conversational modes and state, purpose-built tools, and deterministic code around operations the model should not improvise. Dates and other values are formatted before the model reads them aloud. Sensitive structured input, including Norwegian national identity numbers, is handled separately. Audio checks, stall detection, nudging and careful tool state help keep calls moving.
 
-Appointment booking, changes and cancellations make the risk concrete. Through collaboration with Legelisten.no, Kari is also being developed for healthcare workflows. The system must handle identity, dates, availability and actions correctly, not merely sound plausible. I’m available for serious production voice-AI work where this experience is useful, but voice is not my only consulting focus.
+Appointment booking, changes and cancellations make the risk concrete. Through collaboration with Legelisten.no, Kari is also being developed for healthcare workflows. The system must handle identity, dates, availability and actions correctly, not merely sound plausible. I’m available to work on production voice-AI systems where reliability matters, but voice is not my only consulting focus.
 
 ## Correctness and testing
 
@@ -39,7 +39,7 @@ AI systems need another layer because the model is part of the production behavi
 
 ## How I work
 
-I can take ownership of a bounded implementation, work alongside an existing team, or provide senior engineering capacity for a period. The right setup depends on the work and how much is already known.
+I can take ownership of a specific product or engineering problem, work alongside an existing team, or provide senior engineering capacity for a period. The right setup depends on the work and how much is already known.
 
 When the problem itself is still unclear, a **Technical Product Assessment** can be an optional way to start. Over 5–8 working days, I inspect the product, code and available evidence. I investigate the main risks and build focused experiments, tests or implementation spikes where they provide better answers.
 

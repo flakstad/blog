@@ -8,7 +8,7 @@ description: "Selected product-engineering work by Andreas Flakstad across Breyt
 
 ## Breyta
 
-I joined Breyta as its first employee and later became one of two lead engineers. Over roughly four and a half years, I worked across product, frontend, backend, architecture, infrastructure, integrations and developer tooling. During that time we built four substantially different product generations in a small team.
+I joined Breyta as its first employee and later became one of two lead engineers. Over roughly four and a half years, I worked across product, frontend, backend, architecture, infrastructure, integrations and developer tooling. During that time, Breyta went through four substantially different product generations.
 
 ### Product-data CRM and Data Activation
 
@@ -28,11 +28,11 @@ We used embeddings and vector RAG extensively. For some research tasks, however,
 
 The third product expanded this work beyond user research. Users could combine their own material with web research, talk with the knowledge base through AI chat, and receive recurring reports by email. I worked on chat, web-search infrastructure, report generation and delivery, while simplifying and reusing parts of the previous product.
 
-As the agent gained 20–30 or more tools, their schemas consumed more context and tokens. The tools also remained awkward to combine. Instead of adding another tool for every operation, I experimented with letting the agent write small Clojure programs in a sandbox and combine simpler building blocks itself. The language was an implementation choice. Code execution was the general agent interface. This idea led into the next product.
+As the agent gained 20–30 or more tools, their schemas consumed more context and tokens. The tools also remained awkward to combine. Instead of adding another tool for every operation, I experimented with letting the agent write small Clojure programs in a sandbox and combine simpler building blocks itself. The language was an implementation choice. The idea was to use code execution as a more general agent interface instead of adding another specialized tool for every operation. This idea led into the next product.
 
 ### Agent-first workflow platform
 
-The question behind the final generation was: what should a workflow platform look like if AI agents are first-class programmers? At first, users brought an existing agent such as Codex or Claude Code and let it operate Breyta through the CLI I created. The CLI was part of the product interface, not just developer tooling.
+The question behind the final generation was: what should a workflow platform look like if AI agents are first-class programmers? The initial model was for users to bring an existing coding agent such as Codex or Claude Code and let it operate Breyta through the CLI I created. The CLI was part of the product interface, not just developer tooling.
 
 Workflows used Clojure and EDN and ran inside SCI, a sandboxed Clojure interpreter. Code let agents express and combine logic compactly. Declarative or JSON definitions can be easier to inspect, validate and edit visually. It remains an open question whether code is always the better representation when an agent is the programmer.
 
