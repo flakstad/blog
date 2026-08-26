@@ -29,6 +29,8 @@ jobs:
 
       - name: Build
         run: hugo --minify
+        env:
+          HUGO_POSTHOG_API_KEY: ${{ secrets.HUGO_POSTHOG_API_KEY }}
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
