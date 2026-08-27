@@ -3,7 +3,7 @@ title: "Selected work"
 type: "page"
 eyebrow: "Experience"
 lede: "More than ten years of hands-on software development across early-stage products, applied research, financial software, and independent products."
-description: "Selected product-engineering work by Andreas Flakstad across Breyta, Kari, DNV Research, and EVRY mobile banking."
+description: "Selected product-engineering work by Andreas Flakstad across Breyta, Kari, DNV Group Research & Development, and EVRY mobile banking."
 ---
 
 ## Breyta
@@ -57,9 +57,9 @@ Important failures also become **scenario tests**: conversations defined as data
 
 Appointment booking, changes and cancellations make the distinction clear. I also work with Legelisten.no on uses of Kari in the healthcare sector. The conversation cannot merely sound plausible. Intent, identity, dates and availability must lead to the correct action. The apparent problem is open-ended conversation. The production problem is making that input drive bounded, reliable operations.
 
-## DNV Research
+## DNV Group Research & Development
 
-For roughly three years I worked in DNV Research on web products around FMU-based co-simulation, including Simulation Trust Center and some work related to Open Simulation Platform. I mainly built applications around the simulation technology, not the core engine. Much of the job was turning complex research technology into software people could use.
+For roughly three years I worked in DNV Group Research & Development on web products around FMU-based co-simulation, including Simulation Trust Center and some work related to Open Simulation Platform. I mainly built applications around the simulation technology, not the core engine. Much of the job was turning complex research technology into software people could use.
 
 ## Mobile banking at EVRY
 
