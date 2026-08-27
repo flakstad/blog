@@ -54,4 +54,4 @@ The result is concrete findings and a realistic next implementation step. This i
 
 If you have an important software product that needs experienced hands-on help, send a short note about what you are building and where that help would be useful.
 
-<p class="page-actions"><a class="primary-link" href="mailto:hey@andreasflakstad.no">hey@andreasflakstad.no</a></p>
+<p class="page-actions"><a class="primary-link" href="mailto:hello@andreasflakstad.no">hello@andreasflakstad.no</a></p>
