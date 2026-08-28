@@ -47,11 +47,19 @@ and early, and provide export tools and deletion guarantees.
 
 ## 4. AI as servant, never master
 
-AI amplifies human intent; it does not replace it. It may suggest,
-whether in code completion or creative exploration, but it never
-dictates. Its actions are transparent, attributable, reversible and
-bounded by explicit user permissions. Human override is always
-available.
+AI extends human agency. I may delegate substantial work to it —
+research, implementation, analysis, review and execution — but not
+responsibility.
+
+I decide what should be built, what constraints matter, what authority
+is granted and what standards the result must meet. I verify what
+matters. AI should give me greater capacity to explore alternatives,
+improve quality and build better tools, not surrender judgment or
+accountability.
+
+Its actions should be observable, attributable and bounded by explicit
+permissions. The more capable the agent, the more important clear
+authority and responsibility become.
 
 
 ## 5. Simplicity is strength
@@ -72,11 +80,16 @@ endure: clear, reliable, and straightforward to reason about.
 ## 6. Craft with discipline
 
 I will not ship ugliness. Software is a craft, and beauty matters.
-Accessibility, security, performance budgets, and reliability are
-non-negotiable parts of done. I will ship fewer features, built well
-and on time, rather than many done poorly. I seek the balance between
-excellence and delivery. Neither perfection that paralyzes nor
-mediocrity that corrodes.
+Accessibility, security, performance and reliability are parts of
+done.
+
+Greater capacity should raise the standard, not merely increase
+output. I use it to explore alternatives, test assumptions, simplify
+systems, find weaknesses and improve what I ship. I build no more than
+the product needs, and build what remains well.
+
+I seek the balance between excellence and delivery: neither perfection
+that paralyzes nor mediocrity that corrodes.
 
 
 ## 7 Profit on my terms
