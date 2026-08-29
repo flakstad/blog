@@ -71,9 +71,83 @@ Ordinary Kvist collections use native, homogeneous storage rather than a
 universal persistent collection model. Allocation, borrowing, mutation, and
 cleanup remain part of the source.
 
+## Ordinary Kvist
+
+Most Kvist code is built from structs, enums, unions, arrays, maps, pointers,
+and procedures. Control forms are expressions, fields use dot access, and
+multiple return values bind directly.
+
+```clojure
+(defenum Method [Get Post])
+
+(defstruct Request {
+  method: Method
+  attempts: int
+})
+
+(defn lookup-method [name: string] -> [method: Method, ok: bool]
+  (case name
+    "GET" (return .Get true)
+    "POST" (return .Post true)
+    (return .Get false)))
+
+(defn make-request [name: string] -> [request: Request, ok: bool]
+  (let [[method found] (lookup-method name)]
+    (if found
+      (return (Request {method: method attempts: 0}) true)
+      (return (Request {}) false))))
+
+(defn retry! [request: ^Request]
+  (when (< request^.attempts 3)
+    (set! request^.attempts (+ request^.attempts 1))))
+```
+
+`lookup-method` returns two native values, not a boxed tuple. `^Request` is a
+pointer, and `request^` dereferences it. `case`, `if`, `when`, and `let` lower
+to ordinary native control flow. Odin APIs that return a value and an error use
+the same multiple-return model.
+
+## Kvist and Odin in the same package
+
+One of the Odin design choices I like most is its package model: a directory of
+source files is a package. Source layout, imports, and compilation line up.
+Kvist uses the same model, and a package can contain both `.kvist` and `.odin`
+files. They are compiled together.
+
+An Odin file can define a native type and procedure:
+
+```odin
+// geometry/point.odin
+package geometry
+
+Point :: struct {
+    x, y: f32,
+}
+
+length_squared :: proc(point: Point) -> f32 {
+    return point.x * point.x + point.y * point.y
+}
+```
+
+A Kvist file in the same directory can use them directly:
+
+```clojure
+;; geometry/predicates.kvist
+(package geometry)
+
+(defn origin? [point: geometry.Point] -> bool
+  (= (geometry.length-squared point) 0))
+```
+
+Declarations on both sides can call each other directly. Code importing
+`geometry` sees `Point`, `length-squared`, and `origin?` through the same package
+alias. There is no C boundary, binding generator, or wrapper package between
+the two languages. A low-level subsystem can stay in Odin while the rest of the
+package is written in Kvist, with native types crossing between them.
+
 ## Native values and `Data`
 
-Still, sometimes the shape of a value really is data.
+Sometimes the shape of a value really is data.
 
 HTML is a good example. So are configuration, messages, database transactions,
 pull patterns, and Datalog queries. Giving each possible shape its own native
@@ -108,9 +182,8 @@ dynamic island in an otherwise statically typed language. Its presence is
 visible in function signatures, and the compiler manages its lifetime
 deterministically. There is still no tracing garbage collector.
 
-The boundary can go in either direction. Code can keep an evolving message as
-`Data`, validate it against a native type, or decode it when a subsystem wants
-a concrete representation:
+Code can keep an evolving message as `Data`, validate it against a native type,
+or decode it when a subsystem wants a concrete representation:
 
 ```clojure
 (defstruct Settings {
@@ -168,14 +241,9 @@ total_paid_net :: proc() -> int {
 }
 ```
 
-There are no intermediate collections here. There is also no general lazy
-sequence machinery to optimize away. The source language can be more
-expressive than the execution model without being dishonest about what runs.
-
-Not every pipeline should use a transform. Eager helpers are useful when the
-intermediate collection is itself meaningful, and a direct loop is often the
-clearest answer when the work has unusual state. Kvist provides all three and
-keeps their allocation behavior distinct.
+`total-paid-net` has no intermediate collections or general lazy sequence
+machinery to optimize away. The source language can be more expressive than
+the execution model without being dishonest about what runs.
 
 ## A REPL that runs native code
 
@@ -207,11 +275,11 @@ Earlier runtime forms are not replayed to rebuild the session. A resident
 worker retains loaded native generations and session state. Later submissions
 compile the native declarations they need and load another generation.
 
-There are practical limits, and I prefer that they stay explicit. Some native
-resources cannot be retained safely. Loaded generations live until the session
-is reset. A crash in submitted native code can still crash the worker. And a
-clean `check`, `test`, or `run` remains the reproducible truth; REPL history is
-development state, not a hidden part of the program.
+The model has practical limits. Some native resources cannot be retained
+safely. Loaded generations live until the session is reset. A crash in
+submitted native code can still crash the worker. A clean `check`, `test`, or
+`run` remains the reproducible truth; REPL history is development state, not a
+hidden part of the program.
 
 The same model can attach to a running application built with
 [Olive](https://github.com/flakstad/olive). The application chooses safe
@@ -219,20 +287,33 @@ checkpoints between frames, requests, or jobs. At those points, the live console
 can evaluate native Kvist code against capabilities exposed by the application
 without throwing away the state that made the current bug interesting.
 
-## Why compile to Odin?
+## Why Odin?
 
-Kvist could have targeted C, LLVM, or a custom backend. Odin gives it something
-I value during this stage of the language: a readable systems language between
-Kvist and machine code.
+I think Odin is a beautiful language. It is readable, direct, and has little
+syntax devoted to ceremony. It is not a Lisp, and I prefer Lisp forms when I am
+shaping programs, writing macros, and building data DSLs. Kvist puts that source
+shape on top of a language I already like.
 
-Generated Odin is useful evidence. I can inspect whether a transform really
-became one loop, whether cleanup happens at the expected scope, and whether a
-language feature requires more machinery than its Kvist source suggests. I
-want readable generated output to remain a constraint on the compiler, not
-just a debugging accident.
+Kvist targets Odin because its semantics are close to the ones I want in the
+generated program. Structs have concrete layouts. Slices are views and dynamic
+arrays own storage. Pointers are visible. Procedures can return several values
+directly. Allocation goes through an explicit allocator, normally supplied by
+Odin's implicit `context`.
 
-Odin also gives Kvist a practical ecosystem immediately. Core and vendor
-packages can be imported directly:
+In ordinary Odin code I can see data representation, mutation, and allocation.
+Kvist emits the same model instead of inventing another memory or object model.
+
+The build speed matters too. The Kvist REPL invokes the compiler for every
+submission. Fast native compilation is part of what makes that workflow
+practical.
+
+I use the generated Odin to check what Kvist is actually doing. I can inspect
+whether a transform became one loop, whether cleanup happens at the expected
+scope, and whether a language feature requires more machinery than its Kvist
+source suggests. Readable output is a constraint on the compiler.
+
+Odin is also unusually batteries-included for a systems language. Core and
+vendor packages can be imported directly:
 
 ```clojure
 (import os "core:os")
@@ -240,20 +321,16 @@ packages can be imported directly:
 (import raylib "vendor:raylib")
 ```
 
-Their procedures, types, constants, multiple return values, allocators, and
-errors retain their Odin semantics. Kvist and Odin files can live in the same
-package and call each other without a wrapper layer. If an abstraction in
-Kvist is not helping, I can write the low-level part in ordinary Odin and keep
-the two side by side.
+`core:*` covers files, networking, text, encodings, cryptography, math, and
+concurrency. `vendor:*` includes maintained packages for raylib, SDL, Vulkan,
+WebGPU, miniaudio, curl, Lua, and more. Their procedures, types, constants,
+multiple return values, allocators, and errors retain their Odin semantics in
+Kvist.
 
-Inheriting Odin's constraints is part of the design. Kvist adds a Lisp-shaped,
-transformable source language while keeping the native model recognizable.
+## Compile-time macros
 
-## Macros without a dynamic runtime
-
-Uniform forms are not only a preference about punctuation. They give the
-language a simple representation that macros can transform before normal
-lowering:
+Uniform forms give the language a simple representation that macros can
+transform before normal lowering:
 
 ```clojure
 (defmacro unless [condition & body]
@@ -266,10 +343,8 @@ Macros receive source forms and return source forms. They can validate small
 DSLs or generate structs, unions, constructors, and other repetitive native
 declarations. They run at compile time and do not add a runtime object model.
 
-Macro syntax and runtime `Data` are deliberately separate. Syntax retains
-compiler context and source locations. `Data` is an ordinary immutable runtime
-value. They look related because this is a Lisp, but they solve different
-problems.
+`Data` is not the macro representation. Macro syntax retains compiler context
+and source locations; `Data` is an ordinary immutable runtime value.
 
 ## VevDB as a test of the language
 
@@ -281,7 +356,7 @@ written in Kvist. It has Datomic-style transactions, queries, pull, immutable
 database values, in-memory and durable storage, several indexes, a query
 planner, SQLite integration, a C ABI, and packages for other host languages.
 
-It also makes direct use of the split between native values and `Data`:
+`Data` is a natural fit for its public API:
 
 ```clojure
 (def initial-contacts
@@ -304,11 +379,10 @@ Transactions and queries are naturally `Data`. The database engine underneath
 uses native structs, arrays, maps, pointers, local mutation, and explicit
 storage lifetimes where those are the right tools.
 
-VevDB has forced Kvist to deal with less attractive but more important
-questions: ownership across package boundaries, query execution without
-unnecessary allocation, stable native interfaces, large generated packages,
-and readable code after lowering. It is not only a demo for Kvist. It is the
-program that keeps the language honest.
+VevDB has forced Kvist to handle ownership across package boundaries, query
+execution without unnecessary allocation, stable native interfaces, large
+generated packages, and readable code after lowering. It is not only a demo
+for Kvist. It is the program that keeps the language honest.
 
 ## Building with it
 
@@ -317,12 +391,6 @@ development, imports Odin packages directly, and compiles VevDB. The compiler
 is tested on macOS and Linux, with the core CLI and representative programs
 also tested on Windows. Its output needs no VM or tracing garbage collector.
 
-Building VevDB alongside the language keeps its development tied to concrete
-problems rather than feature checklists.
-
-My goal is to pair the way a Lisp lets me shape a program with the concrete
-execution model I want for native tools and libraries.
+Source code: [github.com/kvist-lang/kvist](https://github.com/kvist-lang/kvist)
 
 That is the experiment: keep the Lisp, change the starting assumptions.
-
-Source code: [github.com/kvist-lang/kvist](https://github.com/kvist-lang/kvist)
