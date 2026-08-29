@@ -71,8 +71,6 @@ Ordinary Kvist collections use native, homogeneous storage rather than a
 universal persistent collection model. Allocation, borrowing, mutation, and
 cleanup remain part of the source.
 
-## Ordinary Kvist
-
 Most Kvist code is built from structs, enums, unions, arrays, maps, pointers,
 and procedures. Control forms are expressions, fields use dot access, and
 multiple return values bind directly.
@@ -321,11 +319,10 @@ vendor packages can be imported directly:
 (import raylib "vendor:raylib")
 ```
 
-`core:*` covers files, networking, text, encodings, cryptography, math, and
-concurrency. `vendor:*` includes maintained packages for raylib, SDL, Vulkan,
-WebGPU, miniaudio, curl, Lua, and more. Their procedures, types, constants,
-multiple return values, allocators, and errors retain their Odin semantics in
-Kvist.
+Odin's core and vendor libraries already cover much of what I need for native
+programs, from files, networking, and cryptography to graphics and audio. Their
+procedures, types, constants, multiple return values, allocators, and errors
+retain their Odin semantics in Kvist.
 
 ## Compile-time macros
 
@@ -391,6 +388,6 @@ development, imports Odin packages directly, and compiles VevDB. The compiler
 is tested on macOS and Linux, with the core CLI and representative programs
 also tested on Windows. Its output needs no VM or tracing garbage collector.
 
-Source code: [github.com/kvist-lang/kvist](https://github.com/kvist-lang/kvist)
-
 That is the experiment: keep the Lisp, change the starting assumptions.
+
+Source code: [github.com/kvist-lang/kvist](https://github.com/kvist-lang/kvist)
