@@ -27,8 +27,8 @@ source code that is refreshingly straightforward. That led to a question:
 [Kvist](https://github.com/kvist-lang/kvist) is my attempt to answer that. It
 has Clojure-inspired syntax, macros, data-shaped code, and interactive
 development, but it compiles to Odin and keeps Odin's native execution model.
-It is not an implementation of Clojure, and it is not an attempt to make all of
-Clojure fit into a native binary.
+It takes ideas I value in Clojure into a different runtime model rather than
+trying to reproduce Clojure itself in a native binary.
 
 <!--more-->
 
@@ -51,37 +51,25 @@ Here is a small Kvist function:
 ```
 
 The parentheses and names are Lisp-like, but the types are concrete. `User` is
-a native struct. `[]User` is a slice of those structs. The result is an owned
-Odin dynamic array of strings, not a persistent vector of boxed objects.
-
-That distinction matters when using the result:
+a native struct. `[]User` is a slice of those structs. The result is an Odin
+dynamic array of strings, and it owns its storage:
 
 ```clojure
 (let [names (active-names users) :defer]
   (println names))
 ```
 
-`:defer` arranges for the owned array to be deleted at the end of the scope. A
-function can instead return an owned value or pass it to something that takes
-ownership. Views such as slices borrow their backing storage. Kvist diagnoses
-some obvious mistakes, but the model is deliberately close to Odin: allocation
-and cleanup remain visible.
-
-Mutation is visible too. Names ending in `!` mutate, while the equivalent
-non-bang operation returns a new owned value:
+`:defer` deletes the array at the end of the scope. Slice views borrow their
+backing storage, and names ending in `!` make mutation explicit:
 
 ```clojure
 (arr.sort-by! .name users)
 (set! user.active? true)
-
-(let [sorted (arr.sort-by .name users) :defer]
-  ...)
 ```
 
-This is one of the places where familiar Clojure spelling can otherwise give
-the wrong impression. Kvist vectors, maps, and arrays are not all persistent
-collections. Ordinary Kvist code uses native, homogeneous storage and its
-ownership rules.
+Ordinary Kvist collections use native, homogeneous storage rather than a
+universal persistent collection model. Allocation, borrowing, mutation, and
+cleanup remain part of the source.
 
 ## Native values and `Data`
 
@@ -258,10 +246,8 @@ package and call each other without a wrapper layer. If an abstraction in
 Kvist is not helping, I can write the low-level part in ordinary Odin and keep
 the two side by side.
 
-This does mean that Kvist inherits constraints from Odin. That is intentional.
-The point is not to disguise one runtime as another. It is to add a
-Lisp-shaped, transformable source language while keeping the native model
-recognizable.
+Inheriting Odin's constraints is part of the design. Kvist adds a Lisp-shaped,
+transformable source language while keeping the native model recognizable.
 
 ## Macros without a dynamic runtime
 
@@ -324,17 +310,18 @@ unnecessary allocation, stable native interfaces, large generated packages,
 and readable code after lowering. It is not only a demo for Kvist. It is the
 program that keeps the language honest.
 
-## Where it is now
+## Building with it
 
-Kvist is still alpha software. The language and tooling are moving, and I am
-still finding the boundaries between helpful inference and hidden behavior.
-The compiler is tested on macOS and Linux. The core CLI and representative
-programs are also tested on Windows. Its output needs no VM or tracing garbage
-collector.
+Kvist already builds native executables and libraries, supports interactive
+development, imports Odin packages directly, and compiles VevDB. The compiler
+is tested on macOS and Linux, with the core CLI and representative programs
+also tested on Windows. Its output needs no VM or tracing garbage collector.
 
-I am not trying to replace Clojure or Odin. I want the way a Lisp lets me shape
-a program, paired with the concrete execution model I want for native tools and
-libraries.
+Building VevDB alongside the language keeps its development tied to concrete
+problems rather than feature checklists.
+
+My goal is to pair the way a Lisp lets me shape a program with the concrete
+execution model I want for native tools and libraries.
 
 That is the experiment: keep the Lisp, change the starting assumptions.
 
