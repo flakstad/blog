@@ -30,7 +30,7 @@ Kvist is a practical Lisp for systems programming. It combines Clojure-inspired 
 
 Ordinary values remain concrete and native. An explicit immutable `Data` model handles heterogeneous values such as configuration, messages and queries. Kvist and Odin files can share a package, and Kvist code can call Odin libraries directly.
 
-[Source code and documentation](https://github.com/kvist-lang/kvist)
+[kvist-lang.org](https://kvist-lang.org/)
 
 ### VevDB
 
@@ -38,7 +38,7 @@ VevDB is a native, embedded Datalog database built around immutable database val
 
 Applications use VevDB’s data model and indexes rather than managing SQL schemas. The engine is written in Kvist and compiles through Odin to a native library. Clojure and Kvist are the main APIs, backed by a C ABI and other language integrations.
 
-[Source code and documentation](https://github.com/vevdb/vev)
+[vevdb.com](https://vevdb.com/)
 
 ### Kimen
 
