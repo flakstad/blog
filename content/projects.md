@@ -34,11 +34,11 @@ Ordinary values remain concrete and native. An explicit immutable `Data` model h
 
 ### VevDB
 
-VevDB is a native, embedded Datalog database built around immutable database values. It provides Datomic-style facts, transactions, queries, pull, history and snapshots. It runs in process, either in memory or durably with bundled SQLite.
+VevDB is a native, embedded database built around Datomic-style immutable database values. Application code can pass a database value to a function and ask the same questions of current, historical or hypothetical state. It provides facts, Datalog, pull, queryable history and hypothetical transactions.
 
-Applications use VevDB’s data model and indexes rather than managing SQL schemas. The engine is written in Kvist and compiles through Odin to a native library. Clojure and Kvist are the main APIs, backed by a C ABI and other language integrations.
+VevDB runs in process, either in memory or durably with bundled SQLite. The engine is written in Kvist and compiles through Odin to a small native library, with supported APIs for C, Clojure, Java and Odin.
 
-[vevdb.com](https://vevdb.com/)
+[Website and documentation](https://vevdb.com/) · [The Database as a Value](https://vevdb.com/articles/the-database-as-a-value/) · [Source code](https://github.com/vevdb/vev)
 
 ### Kimen
 
