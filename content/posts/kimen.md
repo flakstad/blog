@@ -42,8 +42,8 @@ not contain any secret values. The app should not need to know how to load secre
 from five different places. And reading secrets should not require internet
 access.
 
-Introducing [Kimen](https://github.com/flakstad/kimen), a local-first secrets tool. It is
-basically a small vault plus a projection step.
+Introducing [Kimen](https://kimen.systems/), a local-first secrets tool. It is
+basically a small vault plus a projection step, and it is open source.
 
 The vault stores your secrets. The projection step turns vault keys into the
 environment variables and files a process expects, just before that process
@@ -131,5 +131,11 @@ kimen session lock
 ```
 
 The important boundary is still before the app starts, not inside the app.
+
+You can [install Kimen and read the documentation](https://kimen.systems/) on
+the Kimen website. If you are starting with existing plaintext files, the
+guide to [keeping local development secrets out of
+Git](https://kimen.systems/guides/keep-development-secrets-out-of-git/) walks
+through one value at a time.
 
 Source code: [github.com/flakstad/kimen](https://github.com/flakstad/kimen)

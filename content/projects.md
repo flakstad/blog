@@ -44,7 +44,7 @@ Applications use VevDB’s data model and indexes rather than managing SQL schem
 
 Kimen is a small local-first secrets tool. A repository describes the configuration it needs without storing secret values. Kimen keeps those values in a local vault and injects them as environment variables or temporary files when a process starts.
 
-[Read about Kimen](/posts/kimen/) · [Source code](https://github.com/flakstad/kimen)
+[kimen.systems](https://kimen.systems/) · [Article](/posts/kimen/) · [Source code](https://github.com/flakstad/kimen)
 
 ### Olive
 
